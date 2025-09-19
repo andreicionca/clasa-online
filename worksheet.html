@@ -265,10 +265,10 @@
 
       // Funcții placeholder care vor fi implementate în scripturile specifice
       function submitCurrentStep() {
-        if (typeof submitStepToServer === 'function') {
-          submitStepToServer();
+        if (typeof submitCurrentStepWorksheet === 'function') {
+          submitCurrentStepWorksheet();
         } else {
-          console.error('Funcția submitStepToServer nu este definită');
+          console.error('Funcția submitCurrentStepWorksheet nu este definită');
         }
       }
 

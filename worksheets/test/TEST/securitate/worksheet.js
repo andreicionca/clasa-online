@@ -242,7 +242,7 @@ function findFirstIncompleteStep() {
 }
 
 // Funcția pentru trimiterea pasului curent
-function submitStepToServer() {
+function submitCurrentStepWorksheet() {
   if (!validateStepAnswer(currentStepIndex)) {
     showMessage('Completează răspunsul înainte de a-l trimite', 'warning');
     return;

@@ -1,0 +1,623 @@
+/* css/worksheet.css */
+/* Stiluri mobile-first pentru activitățile interactive */
+
+/* Reset și bază */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+    sans-serif;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f5f7fa;
+  font-size: 16px;
+}
+
+/* Container principal */
+.container {
+  max-width: 100%;
+  padding: 16px;
+  margin: 0 auto;
+}
+
+/* Secțiuni */
+.section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* === AUTENTIFICARE === */
+.auth-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 8px;
+}
+
+.auth-header p {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.auth-form {
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  margin-bottom: 16px;
+}
+
+.auth-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.auth-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* === HEADER WORKSHEET === */
+.worksheet-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.student-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#student-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#worksheet-title {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.worksheet-status {
+  font-size: 12px;
+  opacity: 0.8;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+/* === PROGRESS BAR === */
+.progress-container {
+  margin-bottom: 24px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  width: 0%;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* === PAȘI === */
+.steps-container {
+  margin-bottom: 24px;
+}
+
+.step {
+  background: white;
+  border: 2px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.step-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.step-type {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.question {
+  margin-bottom: 20px;
+}
+
+.question-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* === OPȚIUNI GRILE === */
+.options {
+  margin-bottom: 20px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.option input[type='radio'] {
+  margin: 0;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.option label {
+  flex: 1;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.option:has(input:checked) {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+/* === RĂSPUNSURI SCURTE === */
+.answer-input {
+  margin-bottom: 20px;
+}
+
+.short-answer {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.short-answer:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.word-count {
+  text-align: right;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.word-count.sufficient {
+  color: #059669;
+  font-weight: 500;
+}
+
+/* === ACȚIUNI PAS === */
+.step-actions {
+  margin-bottom: 16px;
+}
+
+.submit-step-btn {
+  width: 100%;
+  padding: 12px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.submit-step-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.submit-step-btn.enabled {
+  background: #dc2626;
+}
+
+.submit-step-btn.enabled:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.submit-step-btn.completed {
+  background: #059669;
+  cursor: default;
+  transform: none;
+}
+
+/* === FEEDBACK === */
+.feedback {
+  border-top: 2px solid #f3f4f6;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.feedback-content {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.feedback-score {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: 8px;
+}
+
+.feedback-text {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* === NAVIGARE === */
+.navigation {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.nav-btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.nav-btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.nav-btn.secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.nav-btn.primary {
+  background: #2563eb;
+  color: white;
+}
+
+.nav-btn.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.nav-btn.success {
+  background: #059669;
+  color: white;
+}
+
+.nav-btn.success:hover {
+  background: #047857;
+}
+
+.nav-btn:disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* === MESAJE === */
+.messages {
+  margin-top: 16px;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.message.success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.message.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.message.info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.loading {
+  color: #6b7280;
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* === COMPLETARE === */
+.completion-content {
+  text-align: center;
+}
+
+.completion-content h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #059669;
+  margin-bottom: 16px;
+}
+
+.final-score {
+  font-size: 32px;
+  font-weight: 800;
+  color: #2563eb;
+  margin-bottom: 12px;
+}
+
+.final-feedback {
+  font-size: 16px;
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.completion-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.review-btn,
+.home-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.review-btn {
+  background: #6366f1;
+  color: white;
+}
+
+.review-btn:hover {
+  background: #4f46e5;
+}
+
+.home-btn {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.home-btn:hover {
+  background: #e5e7eb;
+}
+
+/* === READ-ONLY === */
+.readonly-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.readonly-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 8px;
+}
+
+.readonly-header p {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* === RESPONSIVE DESKTOP === */
+@media (min-width: 768px) {
+  .container {
+    max-width: 800px;
+    padding: 24px;
+  }
+
+  .section {
+    padding: 32px;
+  }
+
+  .auth-form {
+    max-width: 400px;
+  }
+
+  .worksheet-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .student-info {
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  #student-name {
+    font-size: 20px;
+  }
+
+  #worksheet-title {
+    font-size: 16px;
+  }
+
+  .step-header {
+    flex-wrap: nowrap;
+  }
+
+  .navigation {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .nav-btn {
+    min-width: 140px;
+  }
+
+  .completion-actions {
+    flex-direction: row;
+    max-width: 400px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 900px;
+  }
+
+  .section {
+    padding: 40px;
+  }
+
+  .step {
+    padding: 32px;
+  }
+}
