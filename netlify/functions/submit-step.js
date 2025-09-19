@@ -428,7 +428,7 @@ async function callWorksheetSpecificAI(
 ) {
   try {
     // Construiește numele funcției AI specializate
-    const functionName = `submit-${subject}-${grade}-securitate`;
+    const functionName = `submit-${subject}-${grade}-securitate`.toLowerCase();
 
     // Pregătește payload-ul pentru funcția AI
     const payload = {
