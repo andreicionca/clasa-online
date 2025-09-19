@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Activitate - Clasa Online</title>
+    <link rel="stylesheet" href="css/worksheet.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Secțiunea de autentificare -->
+      <div id="auth-section" class="section">
+        <div class="auth-header">
+          <h1>Clasa Online</h1>
+          <p>Introdu datele pentru a accesa activitatea</p>
+        </div>
+
+        <div class="auth-form">
+          <div class="input-group">
+            <label for="student-code">Codul tău personal</label>
+            <input
+              type="text"
+              id="student-code"
+              placeholder="Codul primit de la profesor"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="worksheet-password">Parola activității</label>
+            <input
+              type="text"
+              id="worksheet-password"
+              placeholder="Parola activității"
+              autocomplete="off"
+            />
+          </div>
+
+          <button onclick="authenticate()" class="auth-btn" id="auth-btn">
+            Intră în activitate
+          </button>
+
+          <div id="auth-error" class="error hidden"></div>
+          <div id="auth-loading" class="loading hidden">Se verifică datele...</div>
+        </div>
+      </div>
+
+      <!-- Secțiunea activitate -->
+      <div id="worksheet-section" class="section hidden">
+        <!-- Header activitate -->
+        <div id="worksheet-header" class="worksheet-header">
+          <div class="student-info">
+            <span id="student-name"></span>
+            <span id="worksheet-title"></span>
+          </div>
+          <div class="worksheet-status" id="worksheet-status"></div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <div class="progress-text">
+            <span id="current-step">1</span> din <span id="total-steps">4</span> pași
+          </div>
+        </div>
+
+        <!-- Container pentru pași -->
+        <div id="steps-container" class="steps-container">
+          <!-- Pașii se generează dinamic -->
+        </div>
+
+        <!-- Navigare -->
+        <div class="navigation">
+          <button id="prev-btn" class="nav-btn secondary" onclick="previousStep()" disabled>
+            ← Anterior
+          </button>
+          <button id="next-btn" class="nav-btn primary" onclick="nextStep()" disabled>
+            Următorul →
+          </button>
+          <button id="finish-btn" class="nav-btn success hidden" onclick="finishWorksheet()">
+            Termină activitatea
+          </button>
+        </div>
+
+        <!-- Mesaje de status -->
+        <div id="worksheet-messages" class="messages"></div>
+      </div>
+
+      <!-- Secțiunea de finalizare -->
+      <div id="completion-section" class="section hidden">
+        <div class="completion-content">
+          <h2>Activitate finalizată!</h2>
+          <div id="final-score" class="final-score"></div>
+          <div id="final-feedback" class="final-feedback"></div>
+
+          <div class="completion-actions">
+            <button onclick="reviewWorksheet()" class="review-btn">Revizuiește răspunsurile</button>
+            <button onclick="goHome()" class="home-btn">Înapoi la pagina principală</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secțiunea read-only (pentru worksheets inactive) -->
+      <div id="readonly-section" class="section hidden">
+        <div class="readonly-header">
+          <h2>Activitate închisă</h2>
+          <p>
+            Această activitate a fost închisă, dar poți vedea răspunsurile și feedback-ul primit.
+          </p>
+        </div>
+
+        <div id="readonly-content" class="readonly-content">
+          <!-- Progresul anterior se afișează aici -->
+        </div>
+
+        <button onclick="goHome()" class="home-btn">Înapoi la pagina principală</button>
+      </div>
+    </div>
+
+    <!-- Template pentru pas cu grile -->
+    <template id="grila-step-template">
+      <div class="step" data-type="grila">
+        <div class="step-header">
+          <h3 class="step-title">Pas <span class="step-number"></span></h3>
+          <div class="step-type">Alegere multiplă</div>
+        </div>
+
+        <div class="question">
+          <p class="question-text"></p>
+        </div>
+
+        <div class="options" data-step=""></div>
+
+        <div class="step-actions">
+          <button class="submit-step-btn" onclick="submitCurrentStep()">Verifică răspunsul</button>
+        </div>
+
+        <div class="feedback hidden">
+          <div class="feedback-content">
+            <div class="feedback-score"></div>
+            <div class="feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Template pentru pas cu răspuns scurt -->
+    <template id="short-step-template">
+      <div class="step" data-type="short">
+        <div class="step-header">
+          <h3 class="step-title">Pas <span class="step-number"></span></h3>
+          <div class="step-type">Răspuns scurt</div>
+        </div>
+
+        <div class="question">
+          <p class="question-text"></p>
+        </div>
+
+        <div class="answer-input">
+          <textarea
+            class="short-answer"
+            rows="4"
+            placeholder="Scrie răspunsul tău aici..."
+          ></textarea>
+          <div class="word-count">0 cuvinte</div>
+        </div>
+
+        <div class="step-actions">
+          <button class="submit-step-btn" onclick="submitCurrentStep()">Trimite răspunsul</button>
+        </div>
+
+        <div class="feedback hidden">
+          <div class="feedback-content">
+            <div class="feedback-score"></div>
+            <div class="feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Scripts -->
+    <script src="js/common.js"></script>
+    <script>
+      // Variabile globale pentru starea aplicației
+      let authData = null;
+      let currentStepIndex = 0;
+      let stepsData = [];
+      let studentProgress = {};
+
+      // Funcția principală care se execută la încărcarea paginii
+      document.addEventListener('DOMContentLoaded', function () {
+        // Verifică dacă există cod salvat în localStorage
+        const savedCode = localStorage.getItem('studentCode');
+        if (savedCode) {
+          document.getElementById('student-code').value = savedCode;
+        }
+
+        // Event listeners pentru Enter key
+        document.getElementById('student-code').addEventListener('keypress', function (e) {
+          if (e.key === 'Enter') authenticate();
+        });
+
+        document.getElementById('worksheet-password').addEventListener('keypress', function (e) {
+          if (e.key === 'Enter') authenticate();
+        });
+      });
+
+      // Funcția de autentificare
+      async function authenticate() {
+        const studentCode = document.getElementById('student-code').value.trim();
+        const worksheetPassword = document.getElementById('worksheet-password').value.trim();
+        const errorDiv = document.getElementById('auth-error');
+        const loadingDiv = document.getElementById('auth-loading');
+        const authBtn = document.getElementById('auth-btn');
+
+        // Validare input
+        if (!studentCode || !worksheetPassword) {
+          showError('Completează ambele câmpuri', 'auth-error');
+          return;
+        }
+
+        // UI loading state
+        authBtn.disabled = true;
+        authBtn.textContent = 'Se verifică...';
+        loadingDiv.classList.remove('hidden');
+        errorDiv.classList.add('hidden');
+
+        try {
+          const response = await fetch('/api/authenticate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              studentCode: studentCode,
+              worksheetPassword: worksheetPassword,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            // Salvează codul în localStorage
+            localStorage.setItem('studentCode', studentCode);
+
+            // Salvează datele de autentificare
+            authData = data;
+
+            // Inițializează worksheet-ul
+            initializeWorksheet();
+          } else {
+            showError(data.error || 'Eroare de autentificare', 'auth-error');
+          }
+        } catch (error) {
+          showError('Eroare de conexiune. Încearcă din nou.', 'auth-error');
+          console.error('Eroare autentificare:', error);
+        } finally {
+          // Resetare UI
+          authBtn.disabled = false;
+          authBtn.textContent = 'Intră în activitate';
+          loadingDiv.classList.add('hidden');
+        }
+      }
+
+      // Placeholder pentru funcțiile ce urmează să fie implementate
+      function initializeWorksheet() {
+        console.log('Inițializare worksheet cu datele:', authData);
+        // Această funcție va fi implementată în pasul următor
+      }
+
+      function showError(message, elementId) {
+        const errorDiv = document.getElementById(elementId);
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+      }
+
+      function submitCurrentStep() {
+        console.log('Submit step - va fi implementat');
+      }
+
+      function nextStep() {
+        console.log('Next step - va fi implementat');
+      }
+
+      function previousStep() {
+        console.log('Previous step - va fi implementat');
+      }
+
+      function finishWorksheet() {
+        console.log('Finish worksheet - va fi implementat');
+      }
+
+      function reviewWorksheet() {
+        console.log('Review worksheet - va fi implementat');
+      }
+
+      function goHome() {
+        window.location.href = '/index.html';
+      }
+    </script>
+  </body>
+</html>

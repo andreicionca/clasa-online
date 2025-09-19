@@ -1,0 +1,31 @@
+{
+  "name": "clasa-online",
+  "version": "1.0.0",
+  "description": "Platformă educațională cu feedback AI pentru fișe de lucru",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'",
+    "test": "echo 'No tests specified'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "openai": "^4.20.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "keywords": [
+    "education",
+    "ai",
+    "feedback",
+    "worksheets",
+    "interactive"
+  ],
+  "author": "Profesor Andrei Cionca",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andreicionca/clasa-online"
+  }
+}

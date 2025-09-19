@@ -1,0 +1,52 @@
+# Configurația Netlify pentru proiectul EduStep
+
+[build]
+  functions = "netlify/functions"
+  publish = "."
+
+[functions]
+  node_bundler = "esbuild"
+
+# Redirects pentru API-ul funcțiilor
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Redirect pentru pagina principală (opțional)
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Redirect pentru worksheet cu parametri
+[[redirects]]
+  from = "/worksheet"
+  to = "/worksheet.html"
+  status = 200
+  force = false
+
+# Redirect pentru admin
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+  force = false
+
+# Headers pentru securitate
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Headers pentru API endpoints
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
