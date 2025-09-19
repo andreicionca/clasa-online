@@ -37,7 +37,7 @@
             />
           </div>
 
-          <button onclick="authenticate()" class="auth-btn" id="auth-btn">
+          <button onclick="authenticateUser()" class="auth-btn" id="auth-btn">
             Intră în activitate
           </button>
 
@@ -69,18 +69,23 @@
 
         <!-- Container pentru pași -->
         <div id="steps-container" class="steps-container">
-          <!-- Pașii se generează dinamic -->
+          <!-- Pașii se generează dinamic de worksheet.js specific -->
         </div>
 
         <!-- Navigare -->
         <div class="navigation">
-          <button id="prev-btn" class="nav-btn secondary" onclick="previousStep()" disabled>
+          <button
+            id="prev-btn"
+            class="nav-btn secondary"
+            onclick="navigateToPreviousStep()"
+            disabled
+          >
             ← Anterior
           </button>
-          <button id="next-btn" class="nav-btn primary" onclick="nextStep()" disabled>
+          <button id="next-btn" class="nav-btn primary" onclick="navigateToNextStep()" disabled>
             Următorul →
           </button>
-          <button id="finish-btn" class="nav-btn success hidden" onclick="finishWorksheet()">
+          <button id="finish-btn" class="nav-btn success hidden" onclick="completeWorksheet()">
             Termină activitatea
           </button>
         </div>
@@ -97,8 +102,8 @@
           <div id="final-feedback" class="final-feedback"></div>
 
           <div class="completion-actions">
-            <button onclick="reviewWorksheet()" class="review-btn">Revizuiește răspunsurile</button>
-            <button onclick="goHome()" class="home-btn">Înapoi la pagina principală</button>
+            <button onclick="reviewAllSteps()" class="review-btn">Revizuiește răspunsurile</button>
+            <button onclick="goToHomePage()" class="home-btn">Înapoi la pagina principală</button>
           </div>
         </div>
       </div>
@@ -116,7 +121,7 @@
           <!-- Progresul anterior se afișează aici -->
         </div>
 
-        <button onclick="goHome()" class="home-btn">Înapoi la pagina principală</button>
+        <button onclick="goToHomePage()" class="home-btn">Înapoi la pagina principală</button>
       </div>
     </div>
 
@@ -181,124 +186,106 @@
       </div>
     </template>
 
-    <!-- Scripts -->
+    <!-- Scripts în ordine: common.js apoi worksheet.js specific -->
     <script src="js/common.js"></script>
     <script>
       // Variabile globale pentru starea aplicației
-      let authData = null;
+      let authenticationData = null;
       let currentStepIndex = 0;
-      let stepsData = [];
+      let worksheetSteps = [];
       let studentProgress = {};
 
-      // Funcția principală care se execută la încărcarea paginii
+      // Încărcarea paginii
       document.addEventListener('DOMContentLoaded', function () {
-        // Verifică dacă există cod salvat în localStorage
-        const savedCode = localStorage.getItem('studentCode');
-        if (savedCode) {
-          document.getElementById('student-code').value = savedCode;
-        }
-
-        // Event listeners pentru Enter key
-        document.getElementById('student-code').addEventListener('keypress', function (e) {
-          if (e.key === 'Enter') authenticate();
-        });
-
-        document.getElementById('worksheet-password').addEventListener('keypress', function (e) {
-          if (e.key === 'Enter') authenticate();
-        });
+        initializePage();
       });
 
-      // Funcția de autentificare
-      async function authenticate() {
-        const studentCode = document.getElementById('student-code').value.trim();
-        const worksheetPassword = document.getElementById('worksheet-password').value.trim();
-        const errorDiv = document.getElementById('auth-error');
-        const loadingDiv = document.getElementById('auth-loading');
-        const authBtn = document.getElementById('auth-btn');
-
-        // Validare input
-        if (!studentCode || !worksheetPassword) {
-          showError('Completează ambele câmpuri', 'auth-error');
-          return;
-        }
-
-        // UI loading state
-        authBtn.disabled = true;
-        authBtn.textContent = 'Se verifică...';
-        loadingDiv.classList.remove('hidden');
-        errorDiv.classList.add('hidden');
-
-        try {
-          const response = await fetch('/api/authenticate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              studentCode: studentCode,
-              worksheetPassword: worksheetPassword,
-            }),
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            // Salvează codul în localStorage
-            localStorage.setItem('studentCode', studentCode);
-
-            // Salvează datele de autentificare
-            authData = data;
-
-            // Inițializează worksheet-ul
-            initializeWorksheet();
-          } else {
-            showError(data.error || 'Eroare de autentificare', 'auth-error');
-          }
-        } catch (error) {
-          showError('Eroare de conexiune. Încearcă din nou.', 'auth-error');
-          console.error('Eroare autentificare:', error);
-        } finally {
-          // Resetare UI
-          authBtn.disabled = false;
-          authBtn.textContent = 'Intră în activitate';
-          loadingDiv.classList.add('hidden');
-        }
+      // Funcții de legătură între common.js și worksheet.js specific
+      function authenticateUser() {
+        // Apelează funcția din common.js
+        performAuthentication();
       }
 
-      // Placeholder pentru funcțiile ce urmează să fie implementate
-      function initializeWorksheet() {
-        console.log('Inițializare worksheet cu datele:', authData);
-        // Această funcție va fi implementată în pasul următor
+      function navigateToNextStep() {
+        // Apelează funcția din common.js
+        moveToNextStep();
       }
 
-      function showError(message, elementId) {
-        const errorDiv = document.getElementById(elementId);
-        errorDiv.textContent = message;
-        errorDiv.classList.remove('hidden');
+      function navigateToPreviousStep() {
+        // Apelează funcția din common.js
+        moveToPreviousStep();
       }
 
-      function submitCurrentStep() {
-        console.log('Submit step - va fi implementat');
+      function completeWorksheet() {
+        // Funcție pentru finalizarea activității
+        finishCurrentWorksheet();
       }
 
-      function nextStep() {
-        console.log('Next step - va fi implementat');
+      function reviewAllSteps() {
+        // Funcție pentru review
+        showWorksheetReview();
       }
 
-      function previousStep() {
-        console.log('Previous step - va fi implementat');
-      }
-
-      function finishWorksheet() {
-        console.log('Finish worksheet - va fi implementat');
-      }
-
-      function reviewWorksheet() {
-        console.log('Review worksheet - va fi implementat');
-      }
-
-      function goHome() {
+      function goToHomePage() {
+        // Navigare către index.html
         window.location.href = '/index.html';
+      }
+
+      // Callback pentru după autentificare - va fi apelat din common.js
+      function onAuthenticationSuccess(authData) {
+        authenticationData = authData;
+
+        // Determină ce worksheet.js să încărce pe baza datelor
+        const worksheetPath = `worksheets/${authData.worksheet.subject}/${authData.worksheet.grade}/securitate/worksheet.js`;
+
+        // Încarcă scriptul specific
+        loadWorksheetScript(worksheetPath);
+      }
+
+      // Încarcă scriptul specific pentru worksheet
+      function loadWorksheetScript(scriptPath) {
+        const script = document.createElement('script');
+        script.src = scriptPath;
+        script.onload = function () {
+          // După ce s-a încărcat scriptul, inițializează worksheet-ul
+          if (typeof initializeSpecificWorksheet === 'function') {
+            initializeSpecificWorksheet(authenticationData);
+          } else {
+            console.error(
+              'Funcția initializeSpecificWorksheet nu a fost găsită în scriptul specific'
+            );
+          }
+        };
+        script.onerror = function () {
+          console.error('Nu s-a putut încărca scriptul specific:', scriptPath);
+          showMessage('Eroare la încărcarea activității', 'error');
+        };
+        document.head.appendChild(script);
+      }
+
+      // Funcții placeholder care vor fi implementate în scripturile specifice
+      function submitCurrentStep() {
+        if (typeof submitStepToServer === 'function') {
+          submitStepToServer();
+        } else {
+          console.error('Funcția submitStepToServer nu este definită');
+        }
+      }
+
+      function finishCurrentWorksheet() {
+        if (typeof finalizeWorksheet === 'function') {
+          finalizeWorksheet();
+        } else {
+          console.error('Funcția finalizeWorksheet nu este definită');
+        }
+      }
+
+      function showWorksheetReview() {
+        if (typeof displayWorksheetReview === 'function') {
+          displayWorksheetReview();
+        } else {
+          console.error('Funcția displayWorksheetReview nu este definită');
+        }
       }
     </script>
   </body>

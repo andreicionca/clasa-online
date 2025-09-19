@@ -1,45 +1,164 @@
 // js/common.js
-// Funcții JavaScript comune pentru construirea UI-ului dinamic
+// Funcții comune: autentificare, navigare, helpers, validări
 
-// Funcția principală pentru inițializarea worksheet-ului după autentificare
-function initializeWorksheet() {
-  if (!authData) {
-    console.error('Nu există date de autentificare');
-    return;
+// Funcția de inițializare a paginii
+function initializePage() {
+  // Verifică dacă există cod salvat în localStorage
+  const savedCode = localStorage.getItem('studentCode');
+  if (savedCode) {
+    document.getElementById('student-code').value = savedCode;
   }
 
-  // Ascunde secțiunea de autentificare
-  document.getElementById('auth-section').classList.add('hidden');
+  // Event listeners pentru Enter key
+  document.getElementById('student-code').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') performAuthentication();
+  });
 
-  // Verifică statusul worksheet-ului
-  if (!authData.worksheet.is_active) {
-    showReadOnlyMode();
-    return;
-  }
-
-  if (!authData.session.can_submit) {
-    showMaxAttemptsReached();
-    return;
-  }
-
-  // Afișează secțiunea principală
-  document.getElementById('worksheet-section').classList.remove('hidden');
-
-  // Populează header-ul
-  populateWorksheetHeader();
-
-  // Inițializează pașii
-  initializeSteps();
-
-  // Încarcă progresul existent sau începe de la primul pas
-  loadProgress();
-
-  // Afișează primul pas
-  showStep(currentStepIndex);
+  document.getElementById('worksheet-password').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') performAuthentication();
+  });
 }
 
-// Populează informațiile din header
-function populateWorksheetHeader() {
+// Funcția principală de autentificare
+async function performAuthentication() {
+  const studentCode = document.getElementById('student-code').value.trim();
+  const worksheetPassword = document.getElementById('worksheet-password').value.trim();
+  const errorDiv = document.getElementById('auth-error');
+  const loadingDiv = document.getElementById('auth-loading');
+  const authBtn = document.getElementById('auth-btn');
+
+  // Validare input
+  if (!studentCode || !worksheetPassword) {
+    showError('Completează ambele câmpuri', 'auth-error');
+    return;
+  }
+
+  // UI loading state
+  authBtn.disabled = true;
+  authBtn.textContent = 'Se verifică...';
+  loadingDiv.classList.remove('hidden');
+  errorDiv.classList.add('hidden');
+
+  try {
+    const response = await fetch('/api/authenticate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        studentCode: studentCode,
+        worksheetPassword: worksheetPassword,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Salvează codul în localStorage
+      localStorage.setItem('studentCode', studentCode);
+
+      // Ascunde secțiunea de autentificare
+      document.getElementById('auth-section').classList.add('hidden');
+
+      // Apelează callback-ul pentru succes
+      if (typeof onAuthenticationSuccess === 'function') {
+        onAuthenticationSuccess(data);
+      } else {
+        console.error('Callback onAuthenticationSuccess nu este definit');
+      }
+    } else {
+      showError(data.error || 'Eroare de autentificare', 'auth-error');
+    }
+  } catch (error) {
+    showError('Eroare de conexiune. Încearcă din nou.', 'auth-error');
+    console.error('Eroare autentificare:', error);
+  } finally {
+    // Resetare UI
+    authBtn.disabled = false;
+    authBtn.textContent = 'Intră în activitate';
+    loadingDiv.classList.add('hidden');
+  }
+}
+
+// Funcții de navigare
+function moveToNextStep() {
+  if (currentStepIndex < worksheetSteps.length - 1 && isCurrentStepCompleted()) {
+    currentStepIndex++;
+    showCurrentStep();
+    updateNavigation();
+  }
+}
+
+function moveToPreviousStep() {
+  if (currentStepIndex > 0) {
+    currentStepIndex--;
+    showCurrentStep();
+    updateNavigation();
+  }
+}
+
+// Verifică dacă pasul curent este completat
+function isCurrentStepCompleted() {
+  return studentProgress[currentStepIndex] && studentProgress[currentStepIndex].completed;
+}
+
+// Afișează pasul curent
+function showCurrentStep() {
+  // Ascunde toate pașii
+  document.querySelectorAll('.step').forEach((step) => {
+    step.classList.add('hidden');
+  });
+
+  // Afișează pasul curent
+  const currentStep = document.querySelector(`[data-step-index="${currentStepIndex}"]`);
+  if (currentStep) {
+    currentStep.classList.remove('hidden');
+  }
+
+  // Actualizează UI-ul
+  updateProgressDisplay();
+}
+
+// Actualizează afișajul progresului
+function updateProgressDisplay() {
+  // Actualizează numărul pasului curent
+  document.getElementById('current-step').textContent = currentStepIndex + 1;
+
+  // Actualizează progress bar-ul
+  const completedSteps = Object.values(studentProgress).filter((p) => p && p.completed).length;
+  const progressPercentage = (completedSteps / worksheetSteps.length) * 100;
+  document.getElementById('progress-fill').style.width = `${progressPercentage}%`;
+}
+
+// Actualizează butoanele de navigare
+function updateNavigation() {
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const finishBtn = document.getElementById('finish-btn');
+
+  // Butonul Previous
+  prevBtn.disabled = currentStepIndex === 0;
+
+  // Butonul Next
+  const isLastStep = currentStepIndex === worksheetSteps.length - 1;
+  const currentCompleted = isCurrentStepCompleted();
+
+  nextBtn.disabled = !currentCompleted || isLastStep;
+
+  // Butonul Finish
+  const allCompleted = Object.values(studentProgress).every((p) => p && p.completed);
+
+  if (isLastStep && allCompleted) {
+    nextBtn.classList.add('hidden');
+    finishBtn.classList.remove('hidden');
+  } else {
+    nextBtn.classList.remove('hidden');
+    finishBtn.classList.add('hidden');
+  }
+}
+
+// Populează header-ul worksheet-ului
+function populateWorksheetHeader(authData) {
   const studentName = `${authData.student.name} ${authData.student.surname}`;
   const worksheetTitle = `${
     authData.worksheet.title
@@ -55,294 +174,35 @@ function populateWorksheetHeader() {
   document.getElementById('worksheet-status').textContent = statusText;
 }
 
-// Inițializează structura pașilor
-function initializeSteps() {
-  stepsData = authData.worksheet.structure.steps || [];
-
-  // Actualizează numărul total de pași
-  document.getElementById('total-steps').textContent = stepsData.length;
-
-  // Construiește container-ul pentru pași
-  buildStepsContainer();
-
-  // Inițializează progresul pentru fiecare pas
-  studentProgress = {};
-  stepsData.forEach((_, index) => {
-    studentProgress[index] = {
-      completed: false,
-      answer: null,
-      feedback: null,
-      score: 0,
-    };
-  });
-}
-
-// Construiește container-ul HTML pentru toți pașii
-function buildStepsContainer() {
-  const container = document.getElementById('steps-container');
-  container.innerHTML = '';
-
-  stepsData.forEach((stepData, index) => {
-    const stepElement = createStepElement(stepData, index);
-    container.appendChild(stepElement);
-  });
-}
-
-// Creează elementul HTML pentru un pas
-function createStepElement(stepData, stepIndex) {
-  const templateId = stepData.type === 'grila' ? 'grila-step-template' : 'short-step-template';
-  const template = document.getElementById(templateId);
-  const stepElement = template.content.cloneNode(true);
-
-  // Setează numărul pasului
-  const stepDiv = stepElement.querySelector('.step');
-  stepDiv.dataset.stepIndex = stepIndex;
-  stepDiv.classList.add('hidden'); // Inițial ascuns
-
-  // Populează numărul pasului
-  stepElement.querySelector('.step-number').textContent = stepIndex + 1;
-
-  // Populează întrebarea
-  stepElement.querySelector('.question-text').textContent = stepData.question;
-
-  if (stepData.type === 'grila') {
-    buildGrilaOptions(stepElement, stepData, stepIndex);
-  } else if (stepData.type === 'short') {
-    buildShortAnswer(stepElement, stepIndex);
+// Verifică statusul worksheet-ului și afișează secțiunea corespunzătoare
+function checkWorksheetStatus(authData) {
+  if (!authData.worksheet.is_active) {
+    showReadOnlyMode(authData);
+    return false;
   }
 
-  return stepElement;
-}
-
-// Construiește opțiunile pentru întrebările cu grile
-function buildGrilaOptions(stepElement, stepData, stepIndex) {
-  const optionsContainer = stepElement.querySelector('.options');
-  optionsContainer.dataset.step = stepIndex;
-
-  stepData.options.forEach((option, optionIndex) => {
-    const optionDiv = document.createElement('div');
-    optionDiv.className = 'option';
-
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = `step_${stepIndex}`;
-    input.value = optionIndex;
-    input.id = `step_${stepIndex}_option_${optionIndex}`;
-
-    const label = document.createElement('label');
-    label.htmlFor = input.id;
-    label.textContent = option;
-
-    optionDiv.appendChild(input);
-    optionDiv.appendChild(label);
-    optionsContainer.appendChild(optionDiv);
-
-    // Event listener pentru activarea butonului de submit
-    input.addEventListener('change', () => {
-      enableSubmitButton(stepIndex);
-    });
-  });
-}
-
-// Configurează textarea pentru răspunsuri scurte
-function buildShortAnswer(stepElement, stepIndex) {
-  const textarea = stepElement.querySelector('.short-answer');
-  const wordCount = stepElement.querySelector('.word-count');
-
-  textarea.dataset.step = stepIndex;
-
-  // Event listener pentru numărarea cuvintelor și activarea butonului
-  textarea.addEventListener('input', () => {
-    updateWordCount(textarea, wordCount);
-    enableSubmitButton(stepIndex);
-  });
-}
-
-// Actualizează contorul de cuvinte pentru răspunsuri scurte
-function updateWordCount(textarea, wordCountElement) {
-  const text = textarea.value.trim();
-  const wordCount = text === '' ? 0 : text.split(/\s+/).length;
-
-  wordCountElement.textContent = `${wordCount} cuvinte`;
-
-  if (wordCount >= 10) {
-    wordCountElement.classList.add('sufficient');
-  } else {
-    wordCountElement.classList.remove('sufficient');
-  }
-}
-
-// Activează butonul de submit pentru un pas
-function enableSubmitButton(stepIndex) {
-  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
-  const submitBtn = stepElement.querySelector('.submit-step-btn');
-
-  if (isStepAnswered(stepIndex)) {
-    submitBtn.disabled = false;
-    submitBtn.classList.add('enabled');
-  } else {
-    submitBtn.disabled = true;
-    submitBtn.classList.remove('enabled');
-  }
-}
-
-// Verifică dacă un pas are răspuns valid
-function isStepAnswered(stepIndex) {
-  const stepData = stepsData[stepIndex];
-  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
-
-  if (stepData.type === 'grila') {
-    const selectedOption = stepElement.querySelector('input[type="radio"]:checked');
-    return selectedOption !== null;
-  } else if (stepData.type === 'short') {
-    const textarea = stepElement.querySelector('.short-answer');
-    return textarea.value.trim().length >= 5; // Minim 5 caractere
+  if (!authData.session.can_submit) {
+    showMaxAttemptsReached(authData);
+    return false;
   }
 
-  return false;
-}
-
-// Încarcă progresul existent
-function loadProgress() {
-  if (authData.session.progress && authData.session.progress.length > 0) {
-    authData.session.progress.forEach((progressItem) => {
-      const stepIndex = progressItem.step_number - 1; // Convertire la index 0-based
-
-      studentProgress[stepIndex] = {
-        completed: true,
-        answer: progressItem.answer,
-        feedback: progressItem.feedback,
-        score: progressItem.score,
-      };
-
-      // Populează răspunsul în UI
-      populateStepAnswer(stepIndex, progressItem.answer);
-
-      // Afișează feedback-ul
-      if (progressItem.feedback) {
-        showStepFeedback(stepIndex, progressItem.feedback, progressItem.score);
-      }
-    });
-
-    // Setează pasul curent la primul pas necompletat
-    currentStepIndex = findNextIncompleteStep();
-  }
-}
-
-// Găsește următorul pas necompletat
-function findNextIncompleteStep() {
-  for (let i = 0; i < stepsData.length; i++) {
-    if (!studentProgress[i].completed) {
-      return i;
-    }
-  }
-  return stepsData.length - 1; // Toate sunt completate, rămâne la ultimul
-}
-
-// Populează răspunsul unui pas în interfață
-function populateStepAnswer(stepIndex, answer) {
-  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
-  const stepData = stepsData[stepIndex];
-
-  if (stepData.type === 'grila' && typeof answer === 'number') {
-    const radio = stepElement.querySelector(`input[value="${answer}"]`);
-    if (radio) {
-      radio.checked = true;
-    }
-  } else if (stepData.type === 'short' && typeof answer === 'string') {
-    const textarea = stepElement.querySelector('.short-answer');
-    if (textarea) {
-      textarea.value = answer;
-      updateWordCount(textarea, stepElement.querySelector('.word-count'));
-    }
-  }
-}
-
-// Afișează feedback-ul pentru un pas
-function showStepFeedback(stepIndex, feedback, score) {
-  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
-  const feedbackContainer = stepElement.querySelector('.feedback');
-  const scoreElement = stepElement.querySelector('.feedback-score');
-  const textElement = stepElement.querySelector('.feedback-text');
-
-  scoreElement.textContent = `Punctaj: ${score}`;
-  textElement.textContent = feedback;
-
-  feedbackContainer.classList.remove('hidden');
-
-  // Dezactivează submit-ul pentru acest pas
-  const submitBtn = stepElement.querySelector('.submit-step-btn');
-  submitBtn.textContent = 'Completat';
-  submitBtn.disabled = true;
-  submitBtn.classList.add('completed');
-}
-
-// Afișează un pas specific
-function showStep(stepIndex) {
-  // Ascunde toate pașii
-  document.querySelectorAll('.step').forEach((step) => {
-    step.classList.add('hidden');
-  });
-
-  // Afișează pasul curent
-  const currentStep = document.querySelector(`[data-step-index="${stepIndex}"]`);
-  if (currentStep) {
-    currentStep.classList.remove('hidden');
-  }
-
-  // Actualizează UI-ul de navigare
-  updateNavigation();
-  updateProgressBar();
-
-  // Actualizează numărul pasului curent
-  document.getElementById('current-step').textContent = stepIndex + 1;
-}
-
-// Actualizează butoanele de navigare
-function updateNavigation() {
-  const prevBtn = document.getElementById('prev-btn');
-  const nextBtn = document.getElementById('next-btn');
-  const finishBtn = document.getElementById('finish-btn');
-
-  // Butonul Previous
-  prevBtn.disabled = currentStepIndex === 0;
-
-  // Butonul Next
-  const isLastStep = currentStepIndex === stepsData.length - 1;
-  const currentCompleted = studentProgress[currentStepIndex].completed;
-
-  nextBtn.disabled = !currentCompleted || isLastStep;
-
-  // Butonul Finish
-  const allCompleted = Object.values(studentProgress).every((p) => p.completed);
-
-  if (isLastStep && allCompleted) {
-    nextBtn.classList.add('hidden');
-    finishBtn.classList.remove('hidden');
-  } else {
-    nextBtn.classList.remove('hidden');
-    finishBtn.classList.add('hidden');
-  }
-}
-
-// Actualizează progress bar-ul
-function updateProgressBar() {
-  const completedSteps = Object.values(studentProgress).filter((p) => p.completed).length;
-  const progressPercentage = (completedSteps / stepsData.length) * 100;
-
-  document.getElementById('progress-fill').style.width = `${progressPercentage}%`;
+  // Afișează secțiunea principală
+  document.getElementById('worksheet-section').classList.remove('hidden');
+  populateWorksheetHeader(authData);
+  return true;
 }
 
 // Afișează modul read-only
-function showReadOnlyMode() {
+function showReadOnlyMode(authData) {
   document.getElementById('readonly-section').classList.remove('hidden');
+  populateWorksheetHeader(authData);
 
-  // Implementare pentru afișarea progresului în mod read-only
-  // Această parte va fi dezvoltată ulterior
+  // TODO: Implementează afișarea progresului în mod read-only
+  showMessage('Această activitate a fost închisă. Poți vedea doar progresul anterior.', 'info');
 }
 
 // Afișează mesaj pentru numărul maxim de încercări
-function showMaxAttemptsReached() {
+function showMaxAttemptsReached(authData) {
   const worksheetSection = document.getElementById('worksheet-section');
   worksheetSection.classList.remove('hidden');
 
@@ -354,30 +214,95 @@ function showMaxAttemptsReached() {
         </div>
     `;
 
-  populateWorksheetHeader();
-  // Afișează progresul ultimei încercări în mod read-only
-  loadProgress();
-  showReadOnlyProgress();
+  populateWorksheetHeader(authData);
 }
 
-// Afișează progresul în mod read-only
-function showReadOnlyProgress() {
-  // Implementare pentru afișarea progresului fără posibilitate de editare
-  // Această parte va fi dezvoltată ulterior
-}
+// Funcție pentru trimiterea unui pas către server
+async function submitStepToServer(stepIndex, answer) {
+  if (!authenticationData) {
+    showMessage('Date de autentificare lipsă', 'error');
+    return false;
+  }
 
-// Funcții de navigare
-function nextStep() {
-  if (currentStepIndex < stepsData.length - 1 && studentProgress[currentStepIndex].completed) {
-    currentStepIndex++;
-    showStep(currentStepIndex);
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+
+  // UI loading state
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Se trimite...';
+
+  try {
+    const response = await fetch('/api/submit-step', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        studentId: authenticationData.student.id,
+        worksheetId: authenticationData.worksheet.id,
+        stepNumber: stepIndex + 1, // Convert to 1-based
+        answer: answer,
+        attemptNumber: authenticationData.session.current_attempt,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Marchează pasul ca fiind completat
+      studentProgress[stepIndex] = {
+        completed: true,
+        answer: answer,
+        feedback: data.feedback,
+        score: data.score,
+      };
+
+      // Afișează feedback-ul
+      showStepFeedback(stepIndex, data.feedback, data.score);
+
+      // Actualizează navigarea
+      updateNavigation();
+      updateProgressDisplay();
+
+      showMessage(data.message || 'Răspuns trimis cu succes!', 'success');
+      return true;
+    } else {
+      showMessage(data.error || 'Eroare la trimiterea răspunsului', 'error');
+      return false;
+    }
+  } catch (error) {
+    console.error('Eroare submit step:', error);
+    showMessage('Eroare de conexiune. Încearcă din nou.', 'error');
+    return false;
+  } finally {
+    // Resetare UI
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Trimite răspunsul';
   }
 }
 
-function previousStep() {
-  if (currentStepIndex > 0) {
-    currentStepIndex--;
-    showStep(currentStepIndex);
+// Afișează feedback-ul pentru un pas
+function showStepFeedback(stepIndex, feedback, score) {
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const feedbackContainer = stepElement.querySelector('.feedback');
+  const scoreElement = stepElement.querySelector('.feedback-score');
+  const textElement = stepElement.querySelector('.feedback-text');
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+
+  // Populează feedback-ul
+  if (scoreElement) scoreElement.textContent = `Punctaj: ${score}`;
+  if (textElement) textElement.textContent = feedback;
+
+  // Afișează feedback-ul
+  if (feedbackContainer) {
+    feedbackContainer.classList.remove('hidden');
+  }
+
+  // Dezactivează submit-ul pentru acest pas
+  if (submitBtn) {
+    submitBtn.textContent = 'Completat';
+    submitBtn.disabled = true;
+    submitBtn.classList.add('completed');
   }
 }
 
@@ -396,6 +321,61 @@ function showMessage(message, type = 'info') {
   }, 5000);
 }
 
+function showError(message, elementId) {
+  const errorDiv = document.getElementById(elementId);
+  if (errorDiv) {
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+  }
+}
+
 function clearMessages() {
-  document.getElementById('worksheet-messages').innerHTML = '';
+  const messagesDiv = document.getElementById('worksheet-messages');
+  if (messagesDiv) {
+    messagesDiv.innerHTML = '';
+  }
+}
+
+// Validări pentru diferite tipuri de răspunsuri
+function isValidGrilaAnswer(stepIndex) {
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const selectedOption = stepElement.querySelector('input[type="radio"]:checked');
+  return selectedOption !== null;
+}
+
+function isValidShortAnswer(stepIndex) {
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const textarea = stepElement.querySelector('.short-answer');
+  return textarea && textarea.value.trim().length >= 5;
+}
+
+function getStepAnswer(stepIndex) {
+  const stepData = worksheetSteps[stepIndex];
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+
+  if (stepData.type === 'grila') {
+    const selectedOption = stepElement.querySelector('input[type="radio"]:checked');
+    return selectedOption ? parseInt(selectedOption.value) : null;
+  } else if (stepData.type === 'short') {
+    const textarea = stepElement.querySelector('.short-answer');
+    return textarea ? textarea.value.trim() : null;
+  }
+
+  return null;
+}
+
+// Funcție pentru actualizarea contorului de cuvinte
+function updateWordCount(textarea, wordCountElement) {
+  const text = textarea.value.trim();
+  const wordCount = text === '' ? 0 : text.split(/\s+/).length;
+
+  if (wordCountElement) {
+    wordCountElement.textContent = `${wordCount} cuvinte`;
+
+    if (wordCount >= 10) {
+      wordCountElement.classList.add('sufficient');
+    } else {
+      wordCountElement.classList.remove('sufficient');
+    }
+  }
 }
