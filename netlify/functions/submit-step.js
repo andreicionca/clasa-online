@@ -446,7 +446,7 @@ async function callWorksheetSpecificAI(
     const baseURL = process.env.URL || process.env.NETLIFY_URL || 'https://clasaonline.netlify.app';
 
     // Apelează funcția AI specializată
-    const response = await fetch(`${baseURL}/.netlify/functions/worksheets/${functionName}`, {
+    const response = await fetch(`${baseURL}/.netlify/functions/${functionName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
