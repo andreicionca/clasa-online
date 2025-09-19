@@ -414,6 +414,9 @@ exports.handler = async (event) => {
 };
 
 // Funcție pentru apelarea AI-ului specializat pe worksheet
+// Fix pentru functia callWorksheetSpecificAI din submit-step.js
+// Înlocuiește întreaga funcție cu aceasta:
+
 async function callWorksheetSpecificAI(
   subject,
   grade,
@@ -439,22 +442,22 @@ async function callWorksheetSpecificAI(
 
     console.log(`Apel către funcția AI: ${functionName}`);
 
+    // FIX: Folosește URL-ul corect pentru Netlify
+    const baseURL = process.env.URL || process.env.NETLIFY_URL || 'https://clasaonline.netlify.app';
+
     // Apelează funcția AI specializată
-    const response = await fetch(
-      `${process.env.URL}/.netlify/functions/worksheets/${functionName}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${baseURL}/.netlify/functions/worksheets/${functionName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`AI function ${functionName} răspuns ${response.status}:`, errorText);
-      throw new Error(`AI function responded with status ${response.status}`);
+      throw new Error(`AI function responded with status ${response.status}: ${errorText}`);
     }
 
     const result = await response.json();
