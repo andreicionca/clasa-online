@@ -1,159 +1,158 @@
 // worksheets/test/TEST/securitate/worksheet.js
 // Logica specifică pentru activitatea "Securitatea în mediul digital"
-// Refactorizat cu finalizare AI globală
+// Reconstruit de la zero - focusat pe construirea UI și orchestrare
 
-// Funcția principală care inițializează worksheet-ul specific
+// Funcția principală - inițializează worksheet-ul după autentificare
 function initializeSpecificWorksheet(authData) {
-  // Verifică statusul worksheet-ului
+  // Verifică statusul worksheet-ului prin funcția din common.js
   if (!checkWorksheetStatus(authData)) {
-    return; // Worksheet inactiv sau fără încercări
+    return; // Worksheet inactiv sau fără încercări disponibile
   }
 
-  // Extrage datele structurii
+  // Extrage și validează structura
   worksheetSteps = authData.worksheet.structure.steps || [];
-
   if (worksheetSteps.length === 0) {
     showMessage('Nu există pași definiți pentru această activitate', 'error');
     return;
   }
 
-  // Actualizează numărul total de pași
+  // Actualizează UI-ul cu numărul total de pași
   document.getElementById('total-steps').textContent = worksheetSteps.length;
 
-  // Construiește HTML-ul pentru pași
-  buildWorksheetSteps();
+  // Construiește interfața dinamică
+  buildWorksheetInterface();
 
-  // Inițializează progresul elevului
-  initializeStudentProgress(authData);
+  // Inițializează și încarcă progresul
+  initializeProgressTracking(authData);
 
-  // Afișează primul pas necompletat
-  currentStepIndex = findFirstIncompleteStep();
-  showCurrentStep();
-  updateNavigation();
+  // Afișează primul pas disponibil
+  navigateToFirstAvailableStep();
 }
 
-// Construiește HTML-ul pentru toți pașii
-function buildWorksheetSteps() {
+// Construiește întreaga interfață din structura JSON
+function buildWorksheetInterface() {
   const container = document.getElementById('steps-container');
   container.innerHTML = '';
 
   worksheetSteps.forEach((stepData, index) => {
-    const stepElement = createStepElement(stepData, index);
+    const stepElement = createStepFromTemplate(stepData, index);
     container.appendChild(stepElement);
   });
 }
 
-// Creează elementul HTML pentru un pas
-function createStepElement(stepData, stepIndex) {
+// Creează un pas folosind template-urile HTML
+function createStepFromTemplate(stepData, stepIndex) {
   const templateId = stepData.type === 'grila' ? 'grila-step-template' : 'short-step-template';
   const template = document.getElementById(templateId);
 
   if (!template) {
     console.error(`Template-ul ${templateId} nu a fost găsit`);
-    return document.createElement('div');
+    return document.createElement('div'); // Return element gol
   }
 
   const stepElement = template.content.cloneNode(true);
-
-  // Setează atributele pasului
   const stepDiv = stepElement.querySelector('.step');
+
+  // Configurează atributele de bază
   stepDiv.dataset.stepIndex = stepIndex;
-  stepDiv.classList.add('hidden'); // Inițial ascuns
+  stepDiv.classList.add('hidden'); // Inițial toate ascunse
 
-  // Populează numărul pasului
+  // Populează numărul și întrebarea
   stepElement.querySelector('.step-number').textContent = stepIndex + 1;
-
-  // Populează întrebarea
   stepElement.querySelector('.question-text').textContent = stepData.question;
 
   // Construiește conținutul specific tipului
   if (stepData.type === 'grila') {
-    buildGrilaStep(stepElement, stepData, stepIndex);
+    setupGrilaStep(stepElement, stepData, stepIndex);
   } else if (stepData.type === 'short') {
-    buildShortStep(stepElement, stepData, stepIndex);
+    setupShortStep(stepElement, stepData, stepIndex);
   }
 
   return stepElement;
 }
 
-// Construiește pasul pentru întrebări cu grile
-function buildGrilaStep(stepElement, stepData, stepIndex) {
+// Configurează un pas cu grile
+function setupGrilaStep(stepElement, stepData, stepIndex) {
   const optionsContainer = stepElement.querySelector('.options');
-  optionsContainer.dataset.step = stepIndex;
 
   if (!stepData.options || stepData.options.length === 0) {
     console.error(`Opțiunile lipsesc pentru pasul ${stepIndex + 1}`);
     return;
   }
 
+  // Creează opțiunile radio
   stepData.options.forEach((option, optionIndex) => {
     const optionDiv = document.createElement('div');
     optionDiv.className = 'option';
 
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = `step_${stepIndex}`;
-    input.value = optionIndex;
-    input.id = `step_${stepIndex}_option_${optionIndex}`;
+    const radioInput = document.createElement('input');
+    radioInput.type = 'radio';
+    radioInput.name = `step_${stepIndex}`;
+    radioInput.value = optionIndex;
+    radioInput.id = `step_${stepIndex}_option_${optionIndex}`;
 
-    const label = document.createElement('label');
-    label.htmlFor = input.id;
-    label.textContent = option;
+    const labelElement = document.createElement('label');
+    labelElement.htmlFor = radioInput.id;
+    labelElement.textContent = option;
 
-    optionDiv.appendChild(input);
-    optionDiv.appendChild(label);
+    optionDiv.appendChild(radioInput);
+    optionDiv.appendChild(labelElement);
     optionsContainer.appendChild(optionDiv);
 
-    // Event listener pentru activarea butonului de submit
-    input.addEventListener('change', () => {
-      enableSubmitButton(stepIndex);
+    // Event listener pentru activarea submit-ului
+    radioInput.addEventListener('change', () => {
+      updateSubmitButtonState(stepIndex);
     });
   });
 }
 
-// Construiește pasul pentru răspunsuri scurte
-function buildShortStep(stepElement, stepData, stepIndex) {
+// Configurează un pas cu răspuns scurt
+function setupShortStep(stepElement, stepData, stepIndex) {
   const textarea = stepElement.querySelector('.short-answer');
-  const wordCount = stepElement.querySelector('.word-count');
+  const wordCountDiv = stepElement.querySelector('.word-count');
 
-  textarea.dataset.step = stepIndex;
-
-  // Event listeners pentru validare și contorizare
+  // Event listeners pentru input și validare
   textarea.addEventListener('input', () => {
-    updateWordCount(textarea, wordCount);
-    enableSubmitButton(stepIndex);
+    updateWordCount(textarea, wordCountDiv);
+    updateSubmitButtonState(stepIndex);
   });
 
+  // Ctrl+Enter pentru submit rapid
   textarea.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && e.ctrlKey) {
-      // Ctrl+Enter pentru submit rapid
       const submitBtn = stepElement.querySelector('.submit-step-btn');
       if (!submitBtn.disabled) {
-        submitCurrentStep();
+        submitCurrentStepWorksheet();
       }
     }
   });
 }
 
-// Activează/dezactivează butonul de submit pentru un pas
-function enableSubmitButton(stepIndex) {
+// Actualizează starea butonului de submit
+function updateSubmitButtonState(stepIndex) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const submitBtn = stepElement.querySelector('.submit-step-btn');
 
   if (!submitBtn) return;
 
-  const isValid = validateStepAnswer(stepIndex);
+  const hasValidAnswer = checkStepHasValidAnswer(stepIndex);
+  const isCompleted = studentProgress[stepIndex] && studentProgress[stepIndex].completed;
 
-  submitBtn.disabled = !isValid;
-  if (isValid) {
-    submitBtn.classList.add('enabled');
-  } else {
-    submitBtn.classList.remove('enabled');
+  // Nu permite submit dacă e deja completat
+  if (isCompleted) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Completat';
+    submitBtn.classList.add('completed');
+    return;
   }
+
+  // Activează/dezactivează pe baza validității răspunsului
+  submitBtn.disabled = !hasValidAnswer;
+  submitBtn.classList.toggle('enabled', hasValidAnswer);
 }
 
-// Validează răspunsul unui pas
-function validateStepAnswer(stepIndex) {
+// Verifică dacă pasul are răspuns valid
+function checkStepHasValidAnswer(stepIndex) {
   const stepData = worksheetSteps[stepIndex];
 
   if (stepData.type === 'grila') {
@@ -165,9 +164,9 @@ function validateStepAnswer(stepIndex) {
   return false;
 }
 
-// Inițializează progresul elevului
-function initializeStudentProgress(authData) {
-  // Resetează progresul
+// Inițializează tracking-ul progresului
+function initializeProgressTracking(authData) {
+  // Resetează progresul local
   studentProgress = {};
 
   // Inițializează fiecare pas
@@ -180,16 +179,16 @@ function initializeStudentProgress(authData) {
     };
   });
 
-  // Încarcă progresul existent dacă există
+  // Încarcă progresul existent din sesiune
   if (authData.session.progress && authData.session.progress.length > 0) {
-    loadExistingProgress(authData.session.progress);
+    restoreExistingProgress(authData.session.progress);
   }
 }
 
-// Încarcă progresul existent din baza de date
-function loadExistingProgress(progressData) {
+// Restaurează progresul din baza de date
+function restoreExistingProgress(progressData) {
   progressData.forEach((progressItem) => {
-    const stepIndex = progressItem.step_number - 1; // Convertire la index 0-based
+    const stepIndex = progressItem.step_number - 1; // Convertire 0-based
 
     if (stepIndex >= 0 && stepIndex < worksheetSteps.length) {
       studentProgress[stepIndex] = {
@@ -199,10 +198,10 @@ function loadExistingProgress(progressData) {
         score: progressItem.score,
       };
 
-      // Populează răspunsul în UI
-      populateStepAnswer(stepIndex, progressItem.answer);
+      // Restaurează răspunsul în interfață
+      restoreStepAnswer(stepIndex, progressItem.answer);
 
-      // Afișează feedback-ul
+      // Afișează feedback-ul salvat
       if (progressItem.feedback) {
         showStepFeedback(stepIndex, progressItem.feedback, progressItem.score);
       }
@@ -210,8 +209,8 @@ function loadExistingProgress(progressData) {
   });
 }
 
-// Populează răspunsul unui pas în interfață
-function populateStepAnswer(stepIndex, answer) {
+// Restaurează răspunsul unui pas în interfață
+function restoreStepAnswer(stepIndex, answer) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const stepData = worksheetSteps[stepIndex];
 
@@ -219,273 +218,238 @@ function populateStepAnswer(stepIndex, answer) {
     const radio = stepElement.querySelector(`input[value="${answer}"]`);
     if (radio) {
       radio.checked = true;
-      enableSubmitButton(stepIndex);
     }
   } else if (stepData.type === 'short' && typeof answer === 'string') {
     const textarea = stepElement.querySelector('.short-answer');
     if (textarea) {
       textarea.value = answer;
-      const wordCount = stepElement.querySelector('.word-count');
-      updateWordCount(textarea, wordCount);
-      enableSubmitButton(stepIndex);
+      const wordCountDiv = stepElement.querySelector('.word-count');
+      updateWordCount(textarea, wordCountDiv);
     }
   }
+
+  // Actualizează starea butonului
+  updateSubmitButtonState(stepIndex);
 }
 
-// Găsește primul pas necompletat
-function findFirstIncompleteStep() {
+// Navighează la primul pas disponibil
+function navigateToFirstAvailableStep() {
+  // Găsește primul pas necompletat
+  currentStepIndex = 0;
   for (let i = 0; i < worksheetSteps.length; i++) {
     if (!studentProgress[i] || !studentProgress[i].completed) {
-      return i;
+      currentStepIndex = i;
+      break;
     }
   }
-  return worksheetSteps.length - 1; // Toate completate, rămâne la ultimul
+
+  // Dacă toate sunt completate, rămâne la ultimul
+  if (currentStepIndex >= worksheetSteps.length) {
+    currentStepIndex = worksheetSteps.length - 1;
+  }
+
+  // Afișează pasul curent
+  showCurrentStep();
+  updateNavigation();
 }
 
-// Funcția pentru trimiterea pasului curent
+// Funcția pentru trimiterea pasului curent - apelată din HTML
 function submitCurrentStepWorksheet() {
-  if (!validateStepAnswer(currentStepIndex)) {
+  if (!checkStepHasValidAnswer(currentStepIndex)) {
     showMessage('Completează răspunsul înainte de a-l trimite', 'warning');
     return;
   }
 
-  const answer = getStepAnswer(currentStepIndex);
+  const answer = extractStepAnswer(currentStepIndex);
   if (answer === null || answer === undefined) {
-    showMessage('Răspunsul nu a putut fi extras', 'error');
+    showMessage('Răspunsul nu a putut fi extras din interfață', 'error');
     return;
   }
 
-  // Apelează funcția din common.js
+  // Apelează funcția din common.js pentru submit
   submitStepToServer(currentStepIndex, answer);
 }
 
-// Funcția pentru finalizarea worksheet-ului cu AI global
-async function finalizeWorksheet() {
-  // Verifică dacă toate pașii sunt completați
-  const allCompleted = Object.values(studentProgress).every((p) => p && p.completed);
+// Extrage răspunsul din interfață
+function extractStepAnswer(stepIndex) {
+  const stepData = worksheetSteps[stepIndex];
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
 
+  if (stepData.type === 'grila') {
+    const selectedRadio = stepElement.querySelector('input[type="radio"]:checked');
+    return selectedRadio ? parseInt(selectedRadio.value) : null;
+  } else if (stepData.type === 'short') {
+    const textarea = stepElement.querySelector('.short-answer');
+    return textarea ? textarea.value.trim() : null;
+  }
+
+  return null;
+}
+
+// Finalizează worksheet-ul cu raport AI
+async function finalizeWorksheet() {
+  // Verifică că toate pașii sunt completați
+  const allCompleted = Object.values(studentProgress).every((p) => p && p.completed);
   if (!allCompleted) {
     showMessage('Toate pașii trebuie completați înainte de finalizare', 'warning');
     return;
   }
 
-  // Setează UI în stare de loading pentru finalizare
-  setFinalizationLoadingState(true);
+  // UI loading state
+  setFinalizationUIState(true);
 
   try {
-    // Generează raportul AI global
-    const globalReport = await generateGlobalAIReport();
+    // Calculează statistici
+    const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
+    const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
 
-    if (!globalReport || !globalReport.success) {
-      throw new Error(globalReport?.error || 'Eroare la generarea raportului AI');
+    // Generează raportul AI final
+    const finalReport = await requestFinalAIReport(totalScore, maxScore);
+
+    if (!finalReport || !finalReport.success) {
+      throw new Error(finalReport?.error || 'Raportul AI nu a putut fi generat');
     }
 
-    // Salvează raportul în baza de date
-    await saveGlobalReport(globalReport.feedback);
-
-    // Calculează statistici finale
-    const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
-    const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
-
-    // Afișează secțiunea de completare cu raportul AI
-    showCompletionSection(totalScore, maxScore, globalReport.feedback);
-
-    showMessage('Activitatea a fost finalizată și evaluată complet de AI!', 'success');
+    // Afișează completarea cu raportul AI
+    displayCompletionWithAIReport(totalScore, maxScore, finalReport.finalReport);
+    showMessage('Activitatea finalizată cu raport AI complet!', 'success');
   } catch (error) {
-    console.error('Eroare la finalizarea cu AI:', error);
+    console.error('Eroare finalizare AI:', error);
 
-    // Fallback la finalizare fără AI global (doar statistici)
+    // Fallback fără AI
     const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
     const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
 
-    showCompletionSection(
+    displayCompletionWithAIReport(
       totalScore,
       maxScore,
-      'Raportul detaliat AI este temporar indisponibil, dar toate răspunsurile tale au fost evaluate individual.'
+      'Activitatea a fost finalizată cu succes. Raportul AI detaliat nu este disponibil momentan, dar toate răspunsurile au fost evaluate individual.'
     );
-
-    showMessage(
-      'Activitate finalizată. Raportul AI detaliat nu a putut fi generat momentan.',
-      'warning'
-    );
+    showMessage('Activitate finalizată fără raport AI detaliat', 'warning');
   } finally {
-    setFinalizationLoadingState(false);
+    setFinalizationUIState(false);
   }
 }
 
-// Generează raportul AI global pentru întreaga activitate
-async function generateGlobalAIReport() {
-  // Pregătește datele pentru AI-ul global
-  const reportData = {
-    student: {
-      name: authenticationData.student.name,
-      surname: authenticationData.student.surname,
-      grade: authenticationData.student.grade,
-    },
-    worksheet: {
-      title: authenticationData.worksheet.title,
-      subject: authenticationData.worksheet.subject,
-    },
-    performance: {
-      totalSteps: worksheetSteps.length,
-      completedSteps: Object.values(studentProgress).filter((p) => p && p.completed).length,
-      totalScore: Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0),
-      maxScore: worksheetSteps.reduce((sum, step) => sum + step.points, 0),
-    },
-    stepDetails: worksheetSteps.map((step, index) => ({
-      stepNumber: index + 1,
-      type: step.type,
-      question: step.question,
-      points: step.points,
-      studentAnswer: studentProgress[index]?.answer,
-      score: studentProgress[index]?.score || 0,
-      feedback: studentProgress[index]?.feedback,
+// Cere raportul AI final prin funcția centralizată
+async function requestFinalAIReport(totalScore, maxScore) {
+  const performanceData = {
+    totalScore: totalScore,
+    maxScore: maxScore,
+    stepResults: Object.values(studentProgress).map((p) => ({
+      score: p.score || 0,
+      feedback: p.feedback || '',
     })),
   };
 
-  console.log('Generez raport AI global pentru:', reportData.student.name);
+  const studentData = {
+    name: authenticationData.student.name,
+    surname: authenticationData.student.surname,
+    grade: authenticationData.student.grade,
+  };
 
   try {
-    const response = await fetch('/api/generate-global-report', {
+    const response = await fetch('/.netlify/functions/submit-test-TEST-securitate', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        reportData,
-        requestType: 'global_ai_report',
+        requestType: 'final_report',
+        student: studentData,
+        performanceData: performanceData,
+        allStepsData: worksheetSteps,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Server response: ${response.status}`);
+      throw new Error(`Server error: ${response.status}`);
     }
 
-    const result = await response.json();
-    return result;
+    return await response.json();
   } catch (error) {
-    console.error('Eroare în generarea raportului AI global:', error);
+    console.error('Eroare request AI final:', error);
     throw error;
   }
 }
 
-// Salvează raportul global în baza de date
-async function saveGlobalReport(globalFeedback) {
-  try {
-    const response = await fetch('/api/save-global-feedback', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        studentId: authenticationData.student.id,
-        worksheetId: authenticationData.worksheet.id,
-        attemptNumber: authenticationData.session.current_attempt,
-        globalFeedback: globalFeedback,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Nu s-a putut salva raportul global în BD');
-    }
-  } catch (error) {
-    console.error('Eroare la salvarea raportului global:', error);
-  }
-}
-
-// Setează UI în stare de loading pentru finalizare
-function setFinalizationLoadingState(isLoading) {
+// Setează UI-ul pentru finalizare
+function setFinalizationUIState(isLoading) {
   const finishBtn = document.getElementById('finish-btn');
 
   if (isLoading) {
     finishBtn.disabled = true;
     finishBtn.textContent = 'Se generează raportul AI...';
     finishBtn.classList.add('loading');
-
-    // Afișează mesaj de progres
-    showMessage('AI-ul analizează performanța ta completă. Te rugăm să aștepți...', 'info');
+    showMessage('AI analizează performanța completă...', 'info');
   } else {
     finishBtn.classList.remove('loading');
   }
 }
 
-// Afișează secțiunea de completare cu raportul AI
-function showCompletionSection(totalScore, maxScore, globalFeedback) {
-  // Ascunde secțiunea de lucru
+// Afișează completarea cu raportul AI
+function displayCompletionWithAIReport(totalScore, maxScore, aiReport) {
+  // Tranzitia UI
   document.getElementById('worksheet-section').classList.add('hidden');
-
-  // Afișează secțiunea de completare
   document.getElementById('completion-section').classList.remove('hidden');
 
-  // Populează scorul final
+  // Afișează scorul cu styling
   const scoreElement = document.getElementById('final-score');
   const percentage = (totalScore / maxScore) * 100;
+
   scoreElement.innerHTML = `
     <div class="score-display">
-      <span class="score-points">${totalScore}/${maxScore} puncte</span>
-      <span class="score-percentage">(${percentage.toFixed(1)}%)</span>
+      <span class="score-value">${totalScore}/${maxScore} puncte</span>
+      <span class="score-percent">(${percentage.toFixed(1)}%)</span>
     </div>
   `;
 
-  // Adaugă clasa CSS pentru culoarea scorului
-  if (percentage >= 80) {
-    scoreElement.classList.add('score-excellent');
-  } else if (percentage >= 60) {
-    scoreElement.classList.add('score-good');
-  } else {
-    scoreElement.classList.add('score-needs-improvement');
-  }
+  // Styling pe baza performanței
+  scoreElement.className = 'final-score';
+  if (percentage >= 80) scoreElement.classList.add('excellent');
+  else if (percentage >= 60) scoreElement.classList.add('good');
+  else scoreElement.classList.add('needs-improvement');
 
-  // Populează feedback-ul AI global
+  // Afișează raportul AI
   const feedbackElement = document.getElementById('final-feedback');
   feedbackElement.innerHTML = `
-    <div class="ai-report">
-      <h4>Raport AI complet - Securitate Digitală</h4>
-      <div class="ai-feedback-text">${globalFeedback}</div>
+    <div class="ai-final-report">
+      <h4>Raport final - Securitate Digitală</h4>
+      <div class="ai-report-content">${aiReport}</div>
     </div>
   `;
 }
 
-// Funcția pentru afișarea review-ului
+// Review mode - afișează toate pașii simultan
 function displayWorksheetReview() {
-  // Ascunde secțiunea de completare
+  // Tranzitia UI
   document.getElementById('completion-section').classList.add('hidden');
-
-  // Afișează secțiunea principală în mod review
   document.getElementById('worksheet-section').classList.remove('hidden');
 
-  // Afișează toți pașii cu feedback-urile lor
+  // Afișează toți pașii în review mode
   worksheetSteps.forEach((_, index) => {
     const stepElement = document.querySelector(`[data-step-index="${index}"]`);
     if (stepElement) {
       stepElement.classList.remove('hidden');
-
-      // Dezactivează toate input-urile pentru review
-      const inputs = stepElement.querySelectorAll('input, textarea, button');
-      inputs.forEach((input) => {
-        input.disabled = true;
-      });
-
-      // Marchează ca review mode
       stepElement.classList.add('review-mode');
+
+      // Dezactivează toate controalele
+      const controls = stepElement.querySelectorAll('input, textarea, button');
+      controls.forEach((control) => (control.disabled = true));
     }
   });
 
-  // Ascunde navigarea normală
-  document.getElementById('prev-btn').style.display = 'none';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('finish-btn').style.display = 'none';
-
-  // Adaugă buton pentru revenire
+  // Modifică navigarea pentru review
   const navigation = document.querySelector('.navigation');
-  const returnBtn = document.createElement('button');
-  returnBtn.textContent = 'Înapoi la rezultate';
-  returnBtn.className = 'nav-btn primary';
-  returnBtn.onclick = () => {
-    document.getElementById('worksheet-section').classList.add('hidden');
-    document.getElementById('completion-section').classList.remove('hidden');
-  };
-  navigation.appendChild(returnBtn);
+  navigation.innerHTML = `
+    <button onclick="returnToResults()" class="nav-btn primary">
+      Înapoi la rezultate
+    </button>
+  `;
 
-  showMessage('Mod recenzie: Vezi toate răspunsurile și feedback-urile primite', 'info');
+  showMessage('Mod review: toate răspunsurile și feedback-urile', 'info');
+}
+
+// Întoarcere la rezultate din review
+function returnToResults() {
+  document.getElementById('worksheet-section').classList.add('hidden');
+  document.getElementById('completion-section').classList.remove('hidden');
 }
