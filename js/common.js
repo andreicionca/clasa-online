@@ -37,7 +37,7 @@ async function performAuthentication() {
   setAuthLoadingState(authBtn, loadingDiv, errorDiv, true);
 
   try {
-    const response = await fetch('/api/authenticate', {
+    const response = await fetch('/.netlify/functions/authenticate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ async function submitStepToServer(stepIndex, answer) {
   setStepSubmitLoadingState(stepElement, true);
 
   try {
-    const response = await fetch('/api/submit-step', {
+    const response = await fetch('/.netlify/functions/submit-step', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
