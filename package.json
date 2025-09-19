@@ -9,8 +9,8 @@
     "test": "echo 'No tests specified'"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "openai": "^4.20.1"
+    "@supabase/supabase-js": "^2.0.0",
+    "openai": "^4.0.0"
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"
