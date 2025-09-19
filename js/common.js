@@ -1,5 +1,5 @@
 // js/common.js
-// Funcții comune: autentificare, navigare, helpers, validări
+// Funcții comune refactorizate: autentificare, navigare, UI states, retry logic
 
 // Funcția de inițializare a paginii
 function initializePage() {
@@ -34,10 +34,7 @@ async function performAuthentication() {
   }
 
   // UI loading state
-  authBtn.disabled = true;
-  authBtn.textContent = 'Se verifică...';
-  loadingDiv.classList.remove('hidden');
-  errorDiv.classList.add('hidden');
+  setAuthLoadingState(authBtn, loadingDiv, errorDiv, true);
 
   try {
     const response = await fetch('/api/authenticate', {
@@ -74,8 +71,20 @@ async function performAuthentication() {
     console.error('Eroare autentificare:', error);
   } finally {
     // Resetare UI
-    authBtn.disabled = false;
-    authBtn.textContent = 'Intră în activitate';
+    setAuthLoadingState(authBtn, loadingDiv, errorDiv, false);
+  }
+}
+
+// Helper pentru UI states în autentificare
+function setAuthLoadingState(button, loadingDiv, errorDiv, isLoading) {
+  if (isLoading) {
+    button.disabled = true;
+    button.textContent = 'Se verifică...';
+    loadingDiv.classList.remove('hidden');
+    errorDiv.classList.add('hidden');
+  } else {
+    button.disabled = false;
+    button.textContent = 'Intră în activitate';
     loadingDiv.classList.add('hidden');
   }
 }
@@ -196,8 +205,6 @@ function checkWorksheetStatus(authData) {
 function showReadOnlyMode(authData) {
   document.getElementById('readonly-section').classList.remove('hidden');
   populateWorksheetHeader(authData);
-
-  // TODO: Implementează afișarea progresului în mod read-only
   showMessage('Această activitate a fost închisă. Poți vedea doar progresul anterior.', 'info');
 }
 
@@ -208,16 +215,16 @@ function showMaxAttemptsReached(authData) {
 
   const messagesDiv = document.getElementById('worksheet-messages');
   messagesDiv.innerHTML = `
-        <div class="message warning">
-            <h3>Numărul maxim de încercări a fost atins</h3>
-            <p>Ai folosit toate cele ${authData.worksheet.max_attempts} încercări disponibile pentru această activitate.</p>
-        </div>
-    `;
+    <div class="message warning">
+      <h3>Numărul maxim de încercări a fost atins</h3>
+      <p>Ai folosit toate cele ${authData.worksheet.max_attempts} încercări disponibile pentru această activitate.</p>
+    </div>
+  `;
 
   populateWorksheetHeader(authData);
 }
 
-// Funcție pentru trimiterea unui pas către server
+// Funcție principală pentru trimiterea unui pas către server cu retry logic
 async function submitStepToServer(stepIndex, answer) {
   if (!authenticationData) {
     showMessage('Date de autentificare lipsă', 'error');
@@ -227,9 +234,8 @@ async function submitStepToServer(stepIndex, answer) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const submitBtn = stepElement.querySelector('.submit-step-btn');
 
-  // UI loading state
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Se trimite...';
+  // Setează UI în stare de loading
+  setStepSubmitLoadingState(stepElement, true);
 
   try {
     const response = await fetch('/api/submit-step', {
@@ -249,7 +255,7 @@ async function submitStepToServer(stepIndex, answer) {
     const data = await response.json();
 
     if (data.success) {
-      // Marchează pasul ca fiind completat
+      // Succés - marchează pasul ca completat permanent
       studentProgress[stepIndex] = {
         completed: true,
         answer: answer,
@@ -257,52 +263,164 @@ async function submitStepToServer(stepIndex, answer) {
         score: data.score,
       };
 
-      // Afișează feedback-ul
-      showStepFeedback(stepIndex, data.feedback, data.score);
+      // Afișează feedback-ul și marchează UI-ul ca completat
+      showStepFeedback(stepIndex, data.feedback, data.score, data.maxPoints);
+      setStepCompletedState(stepElement);
 
-      // Actualizează navigarea
+      // Actualizează navigarea și progresul
       updateNavigation();
       updateProgressDisplay();
 
-      showMessage(data.message || 'Răspuns trimis cu succes!', 'success');
+      showMessage(data.message || 'Răspuns evaluat cu succes!', 'success');
       return true;
     } else {
-      showMessage(data.error || 'Eroare la trimiterea răspunsului', 'error');
+      // Eroare de la server
+      setStepSubmitErrorState(stepElement, data.error);
+
+      // Verifică dacă e retry-able
+      if (data.retryable) {
+        showRetryMessage(stepIndex, data.error);
+      } else {
+        showMessage(data.error || 'Eroare la trimiterea răspunsului', 'error');
+      }
       return false;
     }
   } catch (error) {
-    console.error('Eroare submit step:', error);
-    showMessage('Eroare de conexiune. Încearcă din nou.', 'error');
+    console.error('Eroare de rețea în submit step:', error);
+    setStepSubmitErrorState(stepElement, 'Eroare de conexiune');
+    showRetryMessage(stepIndex, 'Eroare de conexiune. Te rugăm să încerci din nou.');
     return false;
-  } finally {
-    // Resetare UI
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Trimite răspunsul';
   }
 }
 
-// Afișează feedback-ul pentru un pas
-function showStepFeedback(stepIndex, feedback, score) {
+// Setează UI-ul în stare de loading pentru submit
+function setStepSubmitLoadingState(stepElement, isLoading) {
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+
+  if (isLoading) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Se procesează cu AI...';
+    submitBtn.classList.add('loading');
+
+    // Dezactivează input-urile temporar
+    const inputs = stepElement.querySelectorAll('input, textarea');
+    inputs.forEach((input) => {
+      input.disabled = true;
+    });
+  } else {
+    submitBtn.classList.remove('loading');
+
+    // Reactivează input-urile
+    const inputs = stepElement.querySelectorAll('input, textarea');
+    inputs.forEach((input) => {
+      input.disabled = false;
+    });
+  }
+}
+
+// Setează UI-ul în stare de eroare pentru submit (dar permite retry)
+function setStepSubmitErrorState(stepElement, errorMessage) {
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Trimite răspunsul';
+  submitBtn.classList.remove('loading');
+  submitBtn.classList.add('error');
+
+  // Afișează eroarea temporar
+  setTimeout(() => {
+    submitBtn.classList.remove('error');
+  }, 3000);
+}
+
+// Setează UI-ul în stare de completat (permanent)
+function setStepCompletedState(stepElement) {
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+  const inputs = stepElement.querySelectorAll('input, textarea');
+
+  // Dezactivează permanent după succes
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Completat';
+  submitBtn.classList.add('completed');
+  submitBtn.classList.remove('loading', 'error');
+
+  // Dezactivează input-urile permanent
+  inputs.forEach((input) => {
+    input.disabled = true;
+  });
+
+  // Adaugă clasa de completat la întregul pas
+  stepElement.classList.add('step-completed');
+}
+
+// Afișează mesaj de retry cu buton
+function showRetryMessage(stepIndex, errorMessage) {
+  const messagesDiv = document.getElementById('worksheet-messages');
+  const retryMessage = document.createElement('div');
+  retryMessage.className = 'message retry';
+  retryMessage.innerHTML = `
+    <p>${errorMessage}</p>
+    <button onclick="retryCurrentStep(${stepIndex})" class="retry-btn">
+      Încearcă din nou
+    </button>
+  `;
+
+  messagesDiv.appendChild(retryMessage);
+
+  // Auto-remove după 10 secunde
+  setTimeout(() => {
+    retryMessage.remove();
+  }, 10000);
+}
+
+// Funcție pentru retry manual
+function retryCurrentStep(stepIndex) {
+  // Șterge mesajele de retry
+  const retryMessages = document.querySelectorAll('.message.retry');
+  retryMessages.forEach((msg) => msg.remove());
+
+  // Reactivează butonul și reîncearcă
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+  submitBtn.classList.remove('error');
+
+  // Apelează din nou submit cu același răspuns
+  const answer = getStepAnswer(stepIndex);
+  if (answer !== null && answer !== undefined) {
+    submitStepToServer(stepIndex, answer);
+  }
+}
+
+// Afișează feedback-ul pentru un pas cu design îmbunătățit
+function showStepFeedback(stepIndex, feedback, score, maxPoints) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const feedbackContainer = stepElement.querySelector('.feedback');
   const scoreElement = stepElement.querySelector('.feedback-score');
   const textElement = stepElement.querySelector('.feedback-text');
-  const submitBtn = stepElement.querySelector('.submit-step-btn');
 
   // Populează feedback-ul
-  if (scoreElement) scoreElement.textContent = `Punctaj: ${score}`;
-  if (textElement) textElement.textContent = feedback;
+  if (scoreElement) {
+    scoreElement.textContent = `Punctaj: ${score}/${maxPoints} puncte`;
 
-  // Afișează feedback-ul
-  if (feedbackContainer) {
-    feedbackContainer.classList.remove('hidden');
+    // Adaugă clasa CSS bazată pe performanță
+    const percentage = (score / maxPoints) * 100;
+    if (percentage >= 80) {
+      scoreElement.classList.add('score-excellent');
+    } else if (percentage >= 60) {
+      scoreElement.classList.add('score-good');
+    } else {
+      scoreElement.classList.add('score-needs-improvement');
+    }
   }
 
-  // Dezactivează submit-ul pentru acest pas
-  if (submitBtn) {
-    submitBtn.textContent = 'Completat';
-    submitBtn.disabled = true;
-    submitBtn.classList.add('completed');
+  if (textElement) {
+    textElement.textContent = feedback;
+  }
+
+  // Afișează feedback-ul cu animație
+  if (feedbackContainer) {
+    feedbackContainer.classList.remove('hidden');
+    feedbackContainer.classList.add('feedback-appear');
   }
 }
 
@@ -364,7 +482,7 @@ function getStepAnswer(stepIndex) {
   return null;
 }
 
-// Funcție pentru actualizarea contorului de cuvinte
+// Funcție pentru actualizarea contorului de cuvinte (doar numără, fără limite)
 function updateWordCount(textarea, wordCountElement) {
   const text = textarea.value.trim();
   const wordCount = text === '' ? 0 : text.split(/\s+/).length;
@@ -372,10 +490,15 @@ function updateWordCount(textarea, wordCountElement) {
   if (wordCountElement) {
     wordCountElement.textContent = `${wordCount} cuvinte`;
 
-    if (wordCount >= 10) {
-      wordCountElement.classList.add('sufficient');
+    // Adaugă clase CSS pentru styling, dar fără limite
+    if (wordCount === 0) {
+      wordCountElement.className = 'word-count empty';
+    } else if (wordCount < 10) {
+      wordCountElement.className = 'word-count few';
+    } else if (wordCount < 50) {
+      wordCountElement.className = 'word-count moderate';
     } else {
-      wordCountElement.classList.remove('sufficient');
+      wordCountElement.className = 'word-count many';
     }
   }
 }

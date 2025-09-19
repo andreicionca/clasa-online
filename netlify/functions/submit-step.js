@@ -1,12 +1,12 @@
 // netlify/functions/submit-step.js
-// Funcția pentru trimiterea răspunsurilor pas cu pas și feedback AI instant
+// Funcția pentru trimiterea răspunsurilor pas cu pas cu AI obligatoriu
 
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 exports.handler = async (event) => {
-  // Doar POST requests
+  // Verifică metoda HTTP
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -14,16 +14,36 @@ exports.handler = async (event) => {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({
+        success: false,
+        error: 'Method not allowed',
+      }),
     };
   }
 
-  try {
-    const { studentId, worksheetId, stepNumber, answer, attemptNumber } = JSON.parse(
-      event.body || '{}'
-    );
+  let requestData;
 
-    // Validare input
+  try {
+    requestData = JSON.parse(event.body || '{}');
+  } catch (parseError) {
+    console.error('Eroare parsare JSON în submit-step:', parseError);
+    return {
+      statusCode: 400,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({
+        success: false,
+        error: 'Date JSON invalide',
+      }),
+    };
+  }
+
+  const { studentId, worksheetId, stepNumber, answer, attemptNumber } = requestData;
+
+  try {
+    // Validare date de intrare
     if (
       !studentId ||
       !worksheetId ||
@@ -31,6 +51,12 @@ exports.handler = async (event) => {
       answer === null ||
       answer === undefined
     ) {
+      console.error('Date incomplete în submit-step:', {
+        studentId,
+        worksheetId,
+        stepNumber,
+        answer,
+      });
       return {
         statusCode: 400,
         headers: {
@@ -44,14 +70,15 @@ exports.handler = async (event) => {
       };
     }
 
-    // 1. Verifică dacă elevul și worksheet-ul există și sunt valide
+    // 1. Verifică și încarcă datele studentului
     const { data: student, error: studentError } = await supabase
       .from('students')
-      .select('id, name, surname')
+      .select('id, name, surname, grade')
       .eq('id', studentId)
       .single();
 
     if (studentError || !student) {
+      console.error('Student nu există sau eroare BD:', studentError);
       return {
         statusCode: 404,
         headers: {
@@ -60,11 +87,12 @@ exports.handler = async (event) => {
         },
         body: JSON.stringify({
           success: false,
-          error: 'Student invalid',
+          error: 'Student invalid sau eroare de baza de date',
         }),
       };
     }
 
+    // 2. Verifică și încarcă datele worksheet-ului
     const { data: worksheet, error: worksheetError } = await supabase
       .from('worksheets')
       .select('id, subject, grade, title, structure, is_active, max_attempts')
@@ -72,6 +100,7 @@ exports.handler = async (event) => {
       .single();
 
     if (worksheetError || !worksheet) {
+      console.error('Worksheet nu există sau eroare BD:', worksheetError);
       return {
         statusCode: 404,
         headers: {
@@ -80,12 +109,12 @@ exports.handler = async (event) => {
         },
         body: JSON.stringify({
           success: false,
-          error: 'Worksheet invalid',
+          error: 'Activitate invalidă sau eroare de baza de date',
         }),
       };
     }
 
-    // 2. Verifică dacă worksheet-ul este activ
+    // 3. Verifică dacă worksheet-ul este activ
     if (!worksheet.is_active) {
       return {
         statusCode: 403,
@@ -95,12 +124,12 @@ exports.handler = async (event) => {
         },
         body: JSON.stringify({
           success: false,
-          error: 'Această activitate a fost închisă',
+          error: 'Această activitate a fost închisă și nu mai acceptă răspunsuri',
         }),
       };
     }
 
-    // 3. Determină numărul încercării curente
+    // 4. Determină și verifică numărul încercării curente
     let currentAttempt = attemptNumber;
 
     if (!currentAttempt) {
@@ -115,7 +144,6 @@ exports.handler = async (event) => {
       currentAttempt = attempts && attempts.length > 0 ? attempts[0].attempt_number : 1;
     }
 
-    // 4. Verifică dacă mai poate face încercări
     if (currentAttempt > worksheet.max_attempts) {
       return {
         statusCode: 403,
@@ -125,33 +153,15 @@ exports.handler = async (event) => {
         },
         body: JSON.stringify({
           success: false,
-          error: 'Ai depășit numărul maxim de încercări',
+          error: `Ai depășit numărul maxim de încercări (${worksheet.max_attempts})`,
         }),
       };
     }
 
-    // 5. Creează sau actualizează worksheet_attempts
-    const { data: existingAttempt } = await supabase
-      .from('worksheet_attempts')
-      .select('id')
-      .eq('student_id', studentId)
-      .eq('worksheet_id', worksheetId)
-      .eq('attempt_number', currentAttempt)
-      .single();
-
-    if (!existingAttempt) {
-      await supabase.from('worksheet_attempts').insert({
-        student_id: studentId,
-        worksheet_id: worksheetId,
-        attempt_number: currentAttempt,
-        total_score: 0,
-        is_completed: false,
-      });
-    }
-
-    // 6. Verifică dacă pasul este valid
+    // 5. Verifică și validează structura pasului
     const steps = worksheet.structure.steps || [];
     if (stepNumber < 1 || stepNumber > steps.length) {
+      console.error('Numărul pasului invalid:', { stepNumber, totalSteps: steps.length });
       return {
         statusCode: 400,
         headers: {
@@ -168,13 +178,12 @@ exports.handler = async (event) => {
     const stepData = steps[stepNumber - 1];
     const stepIndex = stepNumber - 1;
 
-    // 7. Validează răspunsul în funcție de tipul întrebării
+    // 6. Validează răspunsul în funcție de tipul întrebării
     let processedAnswer = answer;
     let isCorrect = false;
-    let autoScore = 0;
 
     if (stepData.type === 'grila') {
-      // Pentru grile, răspunsul trebuie să fie un număr valid
+      // Validare răspuns grila
       if (typeof answer !== 'number' || answer < 0 || answer >= stepData.options.length) {
         return {
           statusCode: 400,
@@ -184,15 +193,14 @@ exports.handler = async (event) => {
           },
           body: JSON.stringify({
             success: false,
-            error: 'Răspunsul selectat nu este valid',
+            error: 'Răspunsul selectat nu este valid pentru această întrebare',
           }),
         };
       }
 
       isCorrect = answer === stepData.correct_answer;
-      autoScore = isCorrect ? 1 : 0;
     } else if (stepData.type === 'short') {
-      // Pentru răspunsuri scurte, verifică lungimea minimă
+      // Validare răspuns scurt
       if (typeof answer !== 'string' || answer.trim().length < 5) {
         return {
           statusCode: 400,
@@ -208,15 +216,31 @@ exports.handler = async (event) => {
       }
 
       processedAnswer = answer.trim();
-      // Pentru răspunsuri scurte, scorul va fi determinat de AI
+      // Pentru răspunsuri scurte isCorrect nu se aplică
+    } else {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({
+          success: false,
+          error: `Tip de întrebare nesuportat: ${stepData.type}`,
+        }),
+      };
     }
 
-    // 8. Apelează funcția specifică pentru feedback AI
-    let feedback = 'Feedback în curs de procesare...';
-    let finalScore = autoScore;
+    // 7. Apelează AI pentru feedback - OBLIGATORIU
+    console.log('Apel AI pentru feedback:', {
+      student: student.name,
+      stepType: stepData.type,
+      stepNumber,
+    });
 
+    let aiResponse;
     try {
-      const aiResponse = await callWorksheetSpecificFunction(
+      aiResponse = await callWorksheetSpecificAI(
         worksheet.subject,
         worksheet.grade,
         stepData,
@@ -225,17 +249,83 @@ exports.handler = async (event) => {
         stepIndex,
         isCorrect
       );
-
-      if (aiResponse.success) {
-        feedback = aiResponse.feedback || feedback;
-        finalScore = aiResponse.score !== undefined ? aiResponse.score : finalScore;
-      }
     } catch (aiError) {
-      console.error('Eroare AI feedback:', aiError);
-      // Continuă cu feedback-ul de fallback
+      console.error('Eroare critică în apelul AI:', aiError);
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({
+          success: false,
+          error: 'Sistemul de feedback AI este temporar indisponibil. Te rugăm să încerci din nou.',
+          retryable: true,
+        }),
+      };
     }
 
-    // 9. Verifică dacă există deja progres pentru acest pas și încercare
+    // Verifică că AI-ul a returnat date valide
+    if (!aiResponse || !aiResponse.success) {
+      console.error('AI-ul nu a returnat date valide:', aiResponse);
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({
+          success: false,
+          error:
+            'Sistemul de feedback AI nu a putut procesa răspunsul. Te rugăm să încerci din nou.',
+          retryable: true,
+        }),
+      };
+    }
+
+    const { feedback, score } = aiResponse;
+
+    if (!feedback || score === undefined || score === null) {
+      console.error('Feedback sau scor invalid de la AI:', { feedback: !!feedback, score });
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({
+          success: false,
+          error: 'Feedback-ul AI este incomplet. Te rugăm să încerci din nou.',
+          retryable: true,
+        }),
+      };
+    }
+
+    // 8. Doar după succesul AI, creează/actualizează încercarea în BD
+    const { data: existingAttempt } = await supabase
+      .from('worksheet_attempts')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('worksheet_id', worksheetId)
+      .eq('attempt_number', currentAttempt)
+      .single();
+
+    if (!existingAttempt) {
+      const { error: attemptError } = await supabase.from('worksheet_attempts').insert({
+        student_id: studentId,
+        worksheet_id: worksheetId,
+        attempt_number: currentAttempt,
+        total_score: 0,
+        is_completed: false,
+      });
+
+      if (attemptError) {
+        console.error('Eroare creare attempt:', attemptError);
+        throw new Error('Eroare la salvarea încercării în baza de date');
+      }
+    }
+
+    // 9. Salvează progresul cu feedback-ul AI (doar după succes)
     const { data: existingProgress } = await supabase
       .from('student_progress')
       .select('id')
@@ -245,7 +335,6 @@ exports.handler = async (event) => {
       .eq('attempt_number', currentAttempt)
       .single();
 
-    // 10. Salvează sau actualizează progresul
     if (existingProgress) {
       // Actualizează progresul existent
       const { error: updateError } = await supabase
@@ -253,12 +342,15 @@ exports.handler = async (event) => {
         .update({
           answer: processedAnswer,
           feedback: feedback,
-          score: finalScore,
+          score: score,
           completed_at: new Date().toISOString(),
         })
         .eq('id', existingProgress.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Eroare actualizare progres:', updateError);
+        throw new Error('Eroare la actualizarea progresului în baza de date');
+      }
     } else {
       // Inserează progres nou
       const { error: insertError } = await supabase.from('student_progress').insert({
@@ -267,17 +359,27 @@ exports.handler = async (event) => {
         step_number: stepNumber,
         answer: processedAnswer,
         feedback: feedback,
-        score: finalScore,
+        score: score,
         attempt_number: currentAttempt,
       });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Eroare inserare progres:', insertError);
+        throw new Error('Eroare la salvarea progresului în baza de date');
+      }
     }
 
-    // 11. Actualizează scorul total al încercării
+    // 10. Actualizează scorul total al încercării
     await updateAttemptTotalScore(studentId, worksheetId, currentAttempt);
 
-    // 12. Returnează succesul cu feedback-ul
+    console.log('Progres salvat cu succes:', {
+      student: student.name,
+      stepNumber,
+      score,
+      feedbackLength: feedback.length,
+    });
+
+    // 11. Returnează succesul cu feedback-ul AI
     return {
       statusCode: 200,
       headers: {
@@ -287,14 +389,15 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         feedback: feedback,
-        score: finalScore,
+        score: score,
         isCorrect: isCorrect,
         stepCompleted: true,
-        message: 'Răspuns salvat cu succes!',
+        maxPoints: stepData.points,
+        message: 'Răspuns evaluat și salvat cu succes!',
       }),
     };
   } catch (error) {
-    console.error('Eroare submit-step:', error);
+    console.error('Eroare critică în submit-step:', error);
     return {
       statusCode: 500,
       headers: {
@@ -304,13 +407,14 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: false,
         error: 'Eroare de server. Te rugăm să încerci din nou.',
+        retryable: true,
       }),
     };
   }
 };
 
-// Funcție pentru apelarea funcției specifice de worksheet pentru AI feedback
-async function callWorksheetSpecificFunction(
+// Funcție pentru apelarea AI-ului specializat pe worksheet
+async function callWorksheetSpecificAI(
   subject,
   grade,
   stepData,
@@ -320,10 +424,10 @@ async function callWorksheetSpecificFunction(
   isCorrect
 ) {
   try {
-    // Construiește numele funcției specifice
+    // Construiește numele funcției AI specializate
     const functionName = `submit-${subject}-${grade}-securitate`;
 
-    // Pregătește payload-ul pentru funcția specifică
+    // Pregătește payload-ul pentru funcția AI
     const payload = {
       stepData,
       answer,
@@ -333,7 +437,9 @@ async function callWorksheetSpecificFunction(
       requestType: 'ai_feedback',
     };
 
-    // Apelează funcția specifică prin fetch intern
+    console.log(`Apel către funcția AI: ${functionName}`);
+
+    // Apelează funcția AI specializată
     const response = await fetch(
       `${process.env.NETLIFY_URL}/.netlify/functions/worksheets/${functionName}`,
       {
@@ -345,31 +451,23 @@ async function callWorksheetSpecificFunction(
       }
     );
 
-    if (response.ok) {
-      return await response.json();
-    } else {
-      throw new Error(`AI function responded with ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`AI function ${functionName} răspuns ${response.status}:`, errorText);
+      throw new Error(`AI function responded with status ${response.status}`);
     }
-  } catch (error) {
-    console.error('Eroare apel funcție AI:', error);
 
-    // Fallback - returnează feedback basic
-    if (stepData.type === 'grila') {
-      return {
-        success: true,
-        feedback: isCorrect
-          ? 'Răspuns corect!'
-          : 'Răspuns incorect. Încearcă să te gândești din nou la conceptele învățate.',
-        score: isCorrect ? 1 : 0,
-      };
-    } else {
-      return {
-        success: true,
-        feedback:
-          'Răspunsul tău a fost înregistrat. Feedback-ul detaliat va fi disponibil în curând.',
-        score: 0.5, // Scor implicit pentru răspunsuri scurte
-      };
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error(`AI function ${functionName} returnează eroare:`, result.error);
+      throw new Error(result.error || 'AI function returned unsuccessful response');
     }
+
+    return result;
+  } catch (error) {
+    console.error('Eroare în apelul către AI specializat:', error);
+    throw error; // Re-throw pentru a fi prins de handlerul principal
   }
 }
 
@@ -377,25 +475,37 @@ async function callWorksheetSpecificFunction(
 async function updateAttemptTotalScore(studentId, worksheetId, attemptNumber) {
   try {
     // Calculează scorul total pentru această încercare
-    const { data: progressSteps } = await supabase
+    const { data: progressSteps, error: progressError } = await supabase
       .from('student_progress')
       .select('score')
       .eq('student_id', studentId)
       .eq('worksheet_id', worksheetId)
       .eq('attempt_number', attemptNumber);
 
+    if (progressError) {
+      console.error('Eroare încărcare progres pentru scor total:', progressError);
+      return; // Nu aruncă eroare, doar loggează
+    }
+
     if (progressSteps && progressSteps.length > 0) {
       const totalScore = progressSteps.reduce((sum, step) => sum + (step.score || 0), 0);
 
       // Actualizează scorul total în worksheet_attempts
-      await supabase
+      const { error: updateError } = await supabase
         .from('worksheet_attempts')
         .update({ total_score: totalScore })
         .eq('student_id', studentId)
         .eq('worksheet_id', worksheetId)
         .eq('attempt_number', attemptNumber);
+
+      if (updateError) {
+        console.error('Eroare actualizare scor total:', updateError);
+      } else {
+        console.log(`Scor total actualizat: ${totalScore} pentru attempt ${attemptNumber}`);
+      }
     }
   } catch (error) {
-    console.error('Eroare actualizare scor total:', error);
+    console.error('Eroare în updateAttemptTotalScore:', error);
+    // Nu aruncă eroare pentru că nu e critică pentru fluxul principal
   }
 }

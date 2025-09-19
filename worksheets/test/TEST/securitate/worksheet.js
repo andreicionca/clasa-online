@@ -1,5 +1,6 @@
 // worksheets/test/TEST/securitate/worksheet.js
 // Logica specifică pentru activitatea "Securitatea în mediul digital"
+// Refactorizat cu finalizare AI globală
 
 // Funcția principală care inițializează worksheet-ul specific
 function initializeSpecificWorksheet(authData) {
@@ -258,8 +259,8 @@ function submitCurrentStepWorksheet() {
   submitStepToServer(currentStepIndex, answer);
 }
 
-// Funcția pentru finalizarea worksheet-ului
-function finalizeWorksheet() {
+// Funcția pentru finalizarea worksheet-ului cu AI global
+async function finalizeWorksheet() {
   // Verifică dacă toate pașii sunt completați
   const allCompleted = Object.values(studentProgress).every((p) => p && p.completed);
 
@@ -268,37 +269,181 @@ function finalizeWorksheet() {
     return;
   }
 
-  // Calculează scorul total
-  const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
-  const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
+  // Setează UI în stare de loading pentru finalizare
+  setFinalizationLoadingState(true);
 
-  // Afișează secțiunea de completare
-  document.getElementById('worksheet-section').classList.add('hidden');
-  document.getElementById('completion-section').classList.remove('hidden');
+  try {
+    // Generează raportul AI global
+    const globalReport = await generateGlobalAIReport();
 
-  // Populează rezultatele finale
-  document.getElementById('final-score').textContent = `${totalScore}/${maxScore} puncte`;
+    if (!globalReport || !globalReport.success) {
+      throw new Error(globalReport?.error || 'Eroare la generarea raportului AI');
+    }
 
-  // Generează feedback final
-  const feedbackText = generateFinalFeedback(totalScore, maxScore);
-  document.getElementById('final-feedback').textContent = feedbackText;
+    // Salvează raportul în baza de date
+    await saveGlobalReport(globalReport.feedback);
 
-  showMessage('Activitatea a fost finalizată cu succes!', 'success');
+    // Calculează statistici finale
+    const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
+    const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
+
+    // Afișează secțiunea de completare cu raportul AI
+    showCompletionSection(totalScore, maxScore, globalReport.feedback);
+
+    showMessage('Activitatea a fost finalizată și evaluată complet de AI!', 'success');
+  } catch (error) {
+    console.error('Eroare la finalizarea cu AI:', error);
+
+    // Fallback la finalizare fără AI global (doar statistici)
+    const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
+    const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
+
+    showCompletionSection(
+      totalScore,
+      maxScore,
+      'Raportul detaliat AI este temporar indisponibil, dar toate răspunsurile tale au fost evaluate individual.'
+    );
+
+    showMessage(
+      'Activitate finalizată. Raportul AI detaliat nu a putut fi generat momentan.',
+      'warning'
+    );
+  } finally {
+    setFinalizationLoadingState(false);
+  }
 }
 
-// Generează feedback final pe baza scorului
-function generateFinalFeedback(totalScore, maxScore) {
-  const percentage = (totalScore / maxScore) * 100;
+// Generează raportul AI global pentru întreaga activitate
+async function generateGlobalAIReport() {
+  // Pregătește datele pentru AI-ul global
+  const reportData = {
+    student: {
+      name: authenticationData.student.name,
+      surname: authenticationData.student.surname,
+      grade: authenticationData.student.grade,
+    },
+    worksheet: {
+      title: authenticationData.worksheet.title,
+      subject: authenticationData.worksheet.subject,
+    },
+    performance: {
+      totalSteps: worksheetSteps.length,
+      completedSteps: Object.values(studentProgress).filter((p) => p && p.completed).length,
+      totalScore: Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0),
+      maxScore: worksheetSteps.reduce((sum, step) => sum + step.points, 0),
+    },
+    stepDetails: worksheetSteps.map((step, index) => ({
+      stepNumber: index + 1,
+      type: step.type,
+      question: step.question,
+      points: step.points,
+      studentAnswer: studentProgress[index]?.answer,
+      score: studentProgress[index]?.score || 0,
+      feedback: studentProgress[index]?.feedback,
+    })),
+  };
 
-  if (percentage >= 90) {
-    return 'Excelent! Ai demonstrat o înțelegere foarte bună a conceptelor de securitate digitală.';
-  } else if (percentage >= 75) {
-    return 'Foarte bine! Ai înțeles majoritatea conceptelor importante despre securitate.';
-  } else if (percentage >= 60) {
-    return 'Bine! Ai o bază solidă, dar mai poți îmbunătăți cunoștințele despre securitate.';
-  } else {
-    return 'Te încurajez să studiezi mai mult despre securitatea digitală. Este un domeniu foarte important!';
+  console.log('Generez raport AI global pentru:', reportData.student.name);
+
+  try {
+    const response = await fetch('/api/generate-global-report', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        reportData,
+        requestType: 'global_ai_report',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server response: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Eroare în generarea raportului AI global:', error);
+    throw error;
   }
+}
+
+// Salvează raportul global în baza de date
+async function saveGlobalReport(globalFeedback) {
+  try {
+    const response = await fetch('/api/save-global-feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        studentId: authenticationData.student.id,
+        worksheetId: authenticationData.worksheet.id,
+        attemptNumber: authenticationData.session.current_attempt,
+        globalFeedback: globalFeedback,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Nu s-a putut salva raportul global în BD');
+    }
+  } catch (error) {
+    console.error('Eroare la salvarea raportului global:', error);
+  }
+}
+
+// Setează UI în stare de loading pentru finalizare
+function setFinalizationLoadingState(isLoading) {
+  const finishBtn = document.getElementById('finish-btn');
+
+  if (isLoading) {
+    finishBtn.disabled = true;
+    finishBtn.textContent = 'Se generează raportul AI...';
+    finishBtn.classList.add('loading');
+
+    // Afișează mesaj de progres
+    showMessage('AI-ul analizează performanța ta completă. Te rugăm să aștepți...', 'info');
+  } else {
+    finishBtn.classList.remove('loading');
+  }
+}
+
+// Afișează secțiunea de completare cu raportul AI
+function showCompletionSection(totalScore, maxScore, globalFeedback) {
+  // Ascunde secțiunea de lucru
+  document.getElementById('worksheet-section').classList.add('hidden');
+
+  // Afișează secțiunea de completare
+  document.getElementById('completion-section').classList.remove('hidden');
+
+  // Populează scorul final
+  const scoreElement = document.getElementById('final-score');
+  const percentage = (totalScore / maxScore) * 100;
+  scoreElement.innerHTML = `
+    <div class="score-display">
+      <span class="score-points">${totalScore}/${maxScore} puncte</span>
+      <span class="score-percentage">(${percentage.toFixed(1)}%)</span>
+    </div>
+  `;
+
+  // Adaugă clasa CSS pentru culoarea scorului
+  if (percentage >= 80) {
+    scoreElement.classList.add('score-excellent');
+  } else if (percentage >= 60) {
+    scoreElement.classList.add('score-good');
+  } else {
+    scoreElement.classList.add('score-needs-improvement');
+  }
+
+  // Populează feedback-ul AI global
+  const feedbackElement = document.getElementById('final-feedback');
+  feedbackElement.innerHTML = `
+    <div class="ai-report">
+      <h4>Raport AI complet - Securitate Digitală</h4>
+      <div class="ai-feedback-text">${globalFeedback}</div>
+    </div>
+  `;
 }
 
 // Funcția pentru afișarea review-ului
@@ -320,13 +465,27 @@ function displayWorksheetReview() {
       inputs.forEach((input) => {
         input.disabled = true;
       });
+
+      // Marchează ca review mode
+      stepElement.classList.add('review-mode');
     }
   });
 
-  // Actualizează navigarea pentru review
+  // Ascunde navigarea normală
   document.getElementById('prev-btn').style.display = 'none';
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('finish-btn').style.display = 'none';
+
+  // Adaugă buton pentru revenire
+  const navigation = document.querySelector('.navigation');
+  const returnBtn = document.createElement('button');
+  returnBtn.textContent = 'Înapoi la rezultate';
+  returnBtn.className = 'nav-btn primary';
+  returnBtn.onclick = () => {
+    document.getElementById('worksheet-section').classList.add('hidden');
+    document.getElementById('completion-section').classList.remove('hidden');
+  };
+  navigation.appendChild(returnBtn);
 
   showMessage('Mod recenzie: Vezi toate răspunsurile și feedback-urile primite', 'info');
 }
