@@ -95,7 +95,7 @@ exports.handler = async (event) => {
     // 2. Verifică și încarcă datele worksheet-ului
     const { data: worksheet, error: worksheetError } = await supabase
       .from('worksheets')
-      .select('id, subject, grade, title, structure, is_active, max_attempts')
+      .select('id, subject, grade, topic, title, structure, is_active, max_attempts')
       .eq('id', worksheetId)
       .single();
 
@@ -232,7 +232,11 @@ exports.handler = async (event) => {
     }
 
     // 7. Apelează AI pentru feedback - OBLIGATORIU
-    console.log('Apel AI pentru feedback:', {
+    console.log('Debug AI function call:', {
+      subject: worksheet.subject,
+      grade: worksheet.grade,
+      topic: worksheet.topic,
+      expectedFunctionName: `worksheet-submit-${worksheet.subject}-${worksheet.grade}-${worksheet.topic}`,
       student: student.name,
       stepType: stepData.type,
       stepNumber,
@@ -415,8 +419,6 @@ exports.handler = async (event) => {
 };
 
 // Funcție pentru apelarea AI-ului specializat pe worksheet
-// Fix pentru functia callWorksheetSpecificAI din submit-step.js
-// Înlocuiește întreaga funcție cu aceasta:
 
 async function callWorksheetSpecificAI(
   subject,
