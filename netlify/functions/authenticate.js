@@ -61,7 +61,7 @@ exports.handler = async (event) => {
     const { data: worksheet, error: worksheetError } = await supabase
       .from('worksheets')
       .select(
-        'id, subject, grade, title, description, structure, max_attempts, is_active, is_visible'
+        'id, subject, grade, topic, title, description, structure, max_attempts, is_active, is_visible'
       )
       .eq('password', worksheetPassword)
       .single();

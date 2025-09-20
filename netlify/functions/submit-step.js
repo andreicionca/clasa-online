@@ -243,6 +243,7 @@ exports.handler = async (event) => {
       aiResponse = await callWorksheetSpecificAI(
         worksheet.subject,
         worksheet.grade,
+        worksheet.topic,
         stepData,
         processedAnswer,
         student,
@@ -420,6 +421,7 @@ exports.handler = async (event) => {
 async function callWorksheetSpecificAI(
   subject,
   grade,
+  topic,
   stepData,
   answer,
   student,
@@ -428,7 +430,7 @@ async function callWorksheetSpecificAI(
 ) {
   try {
     // Construiește numele funcției AI specializate
-    const functionName = `worksheet-submit-${subject}-${grade}-${worksheet.topic}`;
+    const functionName = `worksheet-submit-${subject}-${grade}-${topic}`;
 
     // Pregătește payload-ul pentru funcția AI
     const payload = {
