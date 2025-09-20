@@ -1,4 +1,4 @@
-// netlify/functions/submit-step.js
+// netlify/functions/worksheet-submit-step.js
 // Funcția pentru trimiterea răspunsurilor pas cu pas cu AI obligatoriu
 
 const { createClient } = require('@supabase/supabase-js');
@@ -428,7 +428,7 @@ async function callWorksheetSpecificAI(
 ) {
   try {
     // Construiește numele funcției AI specializate
-    const functionName = `submit-${subject}-${grade}-securitate`;
+    const functionName = `worksheet-submit-${subject}-${grade}-securitate`;
 
     // Pregătește payload-ul pentru funcția AI
     const payload = {

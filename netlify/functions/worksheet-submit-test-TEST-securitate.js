@@ -1,4 +1,4 @@
-// netlify/functions/worksheets/submit-test-TEST-securitate.js
+// netlify/functions/submit-test-TEST-securitate.js
 // Funcția AI specializată pentru feedback-ul activității de securitate digitală
 // Gestionează atât feedback-ul per pas cât și raportul final
 
