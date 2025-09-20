@@ -145,6 +145,7 @@ exports.handler = async (event) => {
           id: worksheet.id,
           subject: worksheet.subject,
           grade: worksheet.grade,
+          topic: worksheet.topic,
           title: worksheet.title,
           description: worksheet.description,
           structure: worksheet.structure,
