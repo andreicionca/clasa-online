@@ -106,27 +106,23 @@ exports.handler = async (event) => {
     if (attemptsError) {
       throw attemptsError;
     }
-    let currentAttemptNumber;
+
+    // CORECTARE: Logica pentru calcularea încercării următoare
+    let nextAttemptNumber;
     if (attempts.length === 0) {
-      currentAttemptNumber = 0; // Nicio încercare
+      nextAttemptNumber = 1; // Prima încercare
     } else {
       const lastAttempt = attempts[0];
-      let currentAttemptNumber;
-      if (attempts.length === 0) {
-        currentAttemptNumber = 0; // Nicio încercare
+      if (lastAttempt.is_completed) {
+        // Dacă ultima încercare e completată, următoarea va fi +1
+        nextAttemptNumber = lastAttempt.attempt_number + 1;
       } else {
-        const lastAttempt = attempts[0];
-        if (lastAttempt.is_completed) {
-          // Dacă ultima încercare e completată, următoarea va fi attempt_number + 1
-          currentAttemptNumber = lastAttempt.attempt_number;
-        } else {
-          // Dacă ultima încercare e în progres, continuă cu aceea
-          currentAttemptNumber = lastAttempt.attempt_number - 1;
-        }
+        // Dacă ultima încercare e în progres, continuă cu aceea
+        nextAttemptNumber = lastAttempt.attempt_number;
       }
     }
-    const hasAttemptsLeft = currentAttemptNumber < worksheet.max_attempts;
 
+    const hasAttemptsLeft = nextAttemptNumber <= worksheet.max_attempts;
     // Determină dacă ultima încercare a fost completată
     const lastAttemptCompleted = attempts.length > 0 ? attempts[0].is_completed : false;
 
@@ -167,7 +163,7 @@ exports.handler = async (event) => {
           .select('step_number, answer, feedback, score, completed_at')
           .eq('student_id', student.id)
           .eq('worksheet_id', worksheet.id)
-          .eq('attempt_number', currentAttemptNumber + 1) // ← FIXUL
+          .eq('attempt_number', nextAttemptNumber) // ← FIXUL
           .order('step_number');
 
         if (!progressError && progress) {
@@ -211,7 +207,7 @@ exports.handler = async (event) => {
           max_attempts: worksheet.max_attempts,
         },
         session: {
-          current_attempt: currentAttemptNumber + 1,
+          current_attempt: nextAttemptNumber,
           has_attempts_left: hasAttemptsLeft,
           can_submit: worksheet.is_active && hasAttemptsLeft,
           progress: currentProgress,
