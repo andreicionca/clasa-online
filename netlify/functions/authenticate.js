@@ -159,7 +159,7 @@ exports.handler = async (event) => {
           .select('step_number, answer, feedback, score, completed_at')
           .eq('student_id', student.id)
           .eq('worksheet_id', worksheet.id)
-          .eq('attempt_number', currentAttemptNumber)
+          .eq('attempt_number', currentAttemptNumber + 1) // ← FIXUL
           .order('step_number');
 
         if (!progressError && progress) {
