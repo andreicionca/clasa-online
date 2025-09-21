@@ -309,10 +309,30 @@ body {
   margin-bottom: 16px;
 }
 /* Înlocuiește stilizarea existentă pentru .submit-step-btn */
+
 .submit-step-btn {
   width: 100%;
   padding: 12px;
-  /* Schimbă de la roșu la gradient vibrant inspirat de Copilot */
+  background: #2563eb; /* simplu, albastru */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Hover ușor când e activabil */
+.submit-step-btn.enabled:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+/* NUMAI la apăsare (mouse/touch) apare gradientul */
+.submit-step-btn:active,
+.submit-step-btn.is-pressed {
   background: linear-gradient(
     135deg,
     #0066cc 0%,
@@ -322,28 +342,32 @@ body {
     #9b59b6 100%
   );
   background-size: 200% 200%;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  animation: gradientShift 3s ease-in-out infinite;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  animation: gradientShift 1.8s ease-in-out infinite;
 }
 
-/* Animație pentru gradient dinamic */
-@keyframes gradientShift {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
+/* Loading: păstrează gradientul cât timp „gândește” AI-ul */
+.submit-step-btn.loading {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 102, 204, 0.85) 0%,
+    rgba(0, 168, 107, 0.85) 25%,
+    rgba(255, 215, 0, 0.85) 50%,
+    rgba(255, 105, 180, 0.85) 75%,
+    rgba(155, 89, 182, 0.85) 100%
+  );
+  background-size: 200% 200%;
+  animation: gradientShift 2s ease-in-out infinite;
+  cursor: wait;
 }
 
+/* Completat: verde static */
+.submit-step-btn.completed {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  transform: none;
+  animation: none;
+}
+
+/* Disabled: gri static */
 .submit-step-btn:disabled {
   background: #d1d5db;
   cursor: not-allowed;
@@ -351,46 +375,6 @@ body {
   text-shadow: none;
 }
 
-.submit-step-btn.enabled {
-  /* Păstrează gradientul vibrant când e activat */
-  background: linear-gradient(
-    135deg,
-    #0066cc 0%,
-    #00a86b 25%,
-    #ffd700 50%,
-    #ff69b4 75%,
-    #9b59b6 100%
-  );
-  background-size: 200% 200%;
-  animation: gradientShift 3s ease-in-out infinite;
-}
-
-.submit-step-btn.enabled:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 102, 204, 0.4);
-  animation-duration: 1.5s; /* Accelerează animația la hover */
-}
-
-.submit-step-btn.completed {
-  background: linear-gradient(135deg, #10b981, #34d399);
-  cursor: default;
-  transform: none;
-  animation: none;
-}
-
-/* Pentru loading state - păstrează gradientul dar cu opacitate redusă */
-.submit-step-btn.loading {
-  background: linear-gradient(
-    135deg,
-    rgba(0, 102, 204, 0.7) 0%,
-    rgba(0, 168, 107, 0.7) 25%,
-    rgba(255, 215, 0, 0.7) 50%,
-    rgba(255, 105, 180, 0.7) 75%,
-    rgba(155, 89, 182, 0.7) 100%
-  );
-  cursor: wait;
-  animation: gradientShift 2s ease-in-out infinite;
-}
 /* === FEEDBACK === */
 .feedback {
   border-top: 2px solid #f3f4f6;
