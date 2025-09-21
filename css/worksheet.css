@@ -1007,3 +1007,213 @@ body {
 .short-answer::-webkit-contacts-auto-fill-button {
   display: none !important;
 }
+
+/* === SECȚIUNEA PENTRU ÎNCERCARE ANTERIOARĂ === */
+.previous-attempt-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.previous-attempt-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #d97706;
+  margin-bottom: 8px;
+}
+
+.previous-attempt-header p {
+  color: #92400e;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.previous-attempt-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Info student și worksheet pentru încercare anterioară */
+.previous-attempt-info {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.student-worksheet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.student-worksheet-info .student-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.student-worksheet-info .worksheet-title {
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.attempt-details {
+  font-size: 13px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+/* Secțiunea scorului anterior */
+.previous-score-section {
+  background: #f0f9ff;
+  border: 2px solid #bae6fd;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.previous-score-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: 12px;
+}
+
+.previous-score {
+  font-size: 28px;
+  font-weight: 800;
+  color: #2563eb;
+  margin-bottom: 8px;
+}
+
+/* Raportul AI anterior */
+.previous-report-section {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.previous-report-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.previous-report {
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* Opțiunile pentru utilizator */
+.previous-attempt-options {
+  text-align: center;
+}
+
+.previous-attempt-options h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 16px;
+}
+
+.options-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 320px;
+  margin: 0 auto 16px auto;
+}
+
+.option-btn {
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.option-btn.primary {
+  background: #059669;
+  color: white;
+  border: 2px solid #059669;
+}
+
+.option-btn.primary:hover {
+  background: #047857;
+  border-color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.option-btn.secondary {
+  background: #f8fafc;
+  color: #475569;
+  border: 2px solid #e2e8f0;
+}
+
+.option-btn.secondary:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.retry-info {
+  margin-top: 12px;
+}
+
+.retry-info .info-text {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+/* RESPONSIVE pentru secțiunea anterioară */
+@media (min-width: 768px) {
+  .previous-attempt-header h2 {
+    font-size: 26px;
+  }
+
+  .previous-attempt-content {
+    max-width: 700px;
+  }
+
+  .student-worksheet-info {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .options-buttons {
+    flex-direction: row;
+    max-width: 500px;
+    gap: 16px;
+  }
+
+  .option-btn {
+    flex: 1;
+    padding: 16px 24px;
+  }
+
+  .previous-score {
+    font-size: 36px;
+  }
+}
