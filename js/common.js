@@ -518,7 +518,7 @@ function resetWorksheetInterface() {
   // Șterge toate mesajele
   clearMessages();
 
-  // Resetează toate pașii la starea inițială
+  // Resetează toate sarcinile la starea inițială
   document.querySelectorAll('.step').forEach((stepElement) => {
     // Reactivează toate controalele
     const inputs = stepElement.querySelectorAll('input, textarea');
