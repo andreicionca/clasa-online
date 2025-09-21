@@ -22,6 +22,9 @@ function initializeSpecificWorksheet(authData) {
   // Construiește interfața dinamică
   buildWorksheetInterface();
 
+  // Populează punctajele pentru fiecare pas, dacă este cazul
+  populateStepPoints();
+
   // Folosește funcția din common.js cu logica condițională
   initializeProgressTracking(authData);
 
@@ -37,6 +40,27 @@ function buildWorksheetInterface() {
   worksheetSteps.forEach((stepData, index) => {
     const stepElement = createStepFromTemplate(stepData, index);
     container.appendChild(stepElement);
+  });
+}
+
+// Adaugă această funcție nouă după buildWorksheetInterface()
+function populateStepPoints() {
+  const exerciseConfig = authenticationData.worksheet.structure.exercise_config || {
+    has_scoring: true,
+  };
+
+  if (!exerciseConfig.has_scoring) {
+    return; // Nu afișa punctaje pentru exerciții fără scoring
+  }
+
+  worksheetSteps.forEach((stepData, index) => {
+    const stepElement = document.querySelector(`[data-step-index="${index}"]`);
+    const pointsElement = stepElement.querySelector('.step-points');
+
+    if (pointsElement && stepData.points) {
+      pointsElement.textContent = `${stepData.points} puncte`;
+      pointsElement.classList.remove('hidden');
+    }
   });
 }
 
