@@ -106,8 +106,17 @@ exports.handler = async (event) => {
     if (attemptsError) {
       throw attemptsError;
     }
-
-    const currentAttemptNumber = attempts.length > 0 ? attempts[0].attempt_number : 0;
+    let currentAttemptNumber;
+    if (attempts.length === 0) {
+      currentAttemptNumber = 0; // Nicio încercare
+    } else {
+      const lastAttempt = attempts[0];
+      if (lastAttempt.is_completed) {
+        currentAttemptNumber = lastAttempt.attempt_number; // Ultima încercare completată
+      } else {
+        currentAttemptNumber = lastAttempt.attempt_number - 1; // Încercarea curentă e în progres
+      }
+    }
     const hasAttemptsLeft = currentAttemptNumber < worksheet.max_attempts;
 
     // Determină dacă ultima încercare a fost completată
