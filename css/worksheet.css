@@ -809,7 +809,7 @@ body {
 }
 
 /* === LOADING STATES === */
-.submit-step-btn.loading {
+/* .submit-step-btn.loading {
   cursor: wait;
   position: relative;
 }
@@ -826,7 +826,7 @@ body {
   border-top: 2px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-}
+} */
 
 .submit-step-btn.error {
   background: #dc2626;
@@ -1380,7 +1380,7 @@ body {
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
-.submit-step-btn.loading::after {
+/* .submit-step-btn.loading::after {
   content: '';
   position: absolute;
   right: 12px;
@@ -1392,7 +1392,7 @@ body {
   border-top: 2px solid #fff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-}
+} */
 
 /* Completat: verde static */
 .submit-step-btn.completed {
@@ -1423,14 +1423,14 @@ body {
     background-position: 100% 50%;
   }
 }
-@keyframes spin {
+/* @keyframes spin {
   from {
     transform: translateY(-50%) rotate(0deg);
   }
   to {
     transform: translateY(-50%) rotate(360deg);
   }
-}
+} */
 @keyframes shake {
   0%,
   100% {
