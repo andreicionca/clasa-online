@@ -134,34 +134,54 @@ function setupGrilaStep(stepElement, stepData, stepIndex) {
 function setupShortStep(stepElement, stepData, stepIndex) {
   const textarea = stepElement.querySelector('.short-answer');
   const wordCountDiv = stepElement.querySelector('.word-count');
+  let lastLength = 0; // Pentru detectarea paste-ului prin lungime
 
-  // Blochează toate metodele de paste
-  function showPasteAlarm(e) {
-    e.preventDefault();
+  // Funcție unificată pentru afișarea alarmei de paste
+  function showPasteAlarm(e, revertValue = null) {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
 
-    // Salvează conținutul original
-    const originalValue = textarea.value;
+    // Salvează conținutul original (sau folosește valoarea de revert)
+    const originalValue = revertValue !== null ? revertValue : textarea.value;
     const originalStyle = textarea.style.cssText;
 
     // Afișează alarma în textarea
     textarea.value =
-      '🚨 ChatGPT speaking: Te-am prins! Nu copia răspunsurile. Vreau să văd propriile tale idei! 🚨';
+      '🧠 ChatGPT speaking: Te-am prins! Nu copia răspunsurile. Vreau să văd propriile tale idei! 🚨';
     textarea.style.backgroundColor = '#ffeb3b';
     textarea.style.color = '#d32f2f';
     textarea.style.fontWeight = 'bold';
-    textarea.style.textAlign = 'center';
     textarea.readOnly = true;
 
-    // Revine la normal după 3 secunde
+    // Revine la normal după 6 secunde
     setTimeout(() => {
       textarea.value = originalValue;
       textarea.style.cssText = originalStyle;
       textarea.readOnly = false;
       textarea.focus();
-    }, 3000);
+      lastLength = originalValue.length; // Actualizează lungimea pentru monitorizare
+    }, 6000);
   }
 
-  // Aplică alarma pentru toate metodele de paste
+  // Event listener pentru input - detectează paste prin lungime
+  textarea.addEventListener('input', (e) => {
+    const currentLength = textarea.value.length;
+    const difference = currentLength - lastLength;
+
+    // Dacă textul a crescut brusc cu mult (probabil paste)
+    if (difference > 20) {
+      const revertValue = textarea.value.substring(0, lastLength);
+      showPasteAlarm(e, revertValue);
+      return; // Nu continuă cu restul logicii
+    }
+
+    lastLength = currentLength;
+    updateWordCount(textarea, wordCountDiv);
+    updateSubmitButtonState(stepIndex);
+  });
+
+  // Blochează metodele tradiționale de paste
   textarea.addEventListener('paste', showPasteAlarm);
   textarea.addEventListener('drop', showPasteAlarm);
   textarea.addEventListener('keydown', (e) => {
@@ -170,13 +190,7 @@ function setupShortStep(stepElement, stepData, stepIndex) {
     }
   });
 
-  // Event listeners pentru input și validare
-  textarea.addEventListener('input', () => {
-    updateWordCount(textarea, wordCountDiv);
-    updateSubmitButtonState(stepIndex);
-  });
-
-  // Ctrl+Enter pentru submit rapid
+  // Event listener pentru Ctrl+Enter
   textarea.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && e.ctrlKey) {
       const submitBtn = stepElement.querySelector('.submit-step-btn');
