@@ -46,6 +46,63 @@
         </div>
       </div>
 
+      <!-- NOUĂ: Secțiunea pentru activitate deja făcută -->
+      <div id="previous-attempt-section" class="section hidden">
+        <div class="previous-attempt-header">
+          <h2>Activitate deja completată</h2>
+          <p>Ai mai făcut această activitate anterior. Iată rezultatele tale:</p>
+        </div>
+
+        <div class="previous-attempt-content">
+          <!-- Informații despre student și activitate -->
+          <div class="previous-attempt-info">
+            <div class="student-worksheet-info">
+              <span id="prev-student-name" class="student-name"></span>
+              <span id="prev-worksheet-title" class="worksheet-title"></span>
+            </div>
+            <div id="prev-attempt-details" class="attempt-details"></div>
+          </div>
+
+          <!-- Scorul anterior -->
+          <div class="previous-score-section">
+            <h3>Rezultatul tău anterior</h3>
+            <div id="previous-score" class="previous-score">
+              <!-- Populat dinamic cu scorul anterior -->
+            </div>
+          </div>
+
+          <!-- Raportul AI anterior -->
+          <div class="previous-report-section">
+            <h3>Raportul profesorului AI</h3>
+            <div id="previous-report" class="previous-report">
+              <!-- Populat dinamic cu raportul AI anterior -->
+            </div>
+          </div>
+
+          <!-- Opțiuni pentru utilizator -->
+          <div class="previous-attempt-options">
+            <h3>Ce dorești să faci?</h3>
+            <div class="options-buttons">
+              <button
+                id="retry-exercise-btn"
+                class="option-btn primary"
+                onclick="handleRetryFromPrevious()"
+              >
+                Refă exercițiul din nou
+              </button>
+              <button id="go-home-btn" class="option-btn secondary" onclick="goToHomePage()">
+                Înapoi la pagina principală
+              </button>
+            </div>
+            <div class="retry-info">
+              <p id="retry-info-text" class="info-text">
+                <!-- Populat dinamic cu informații despre încercări rămase -->
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Secțiunea activitate -->
       <div id="worksheet-section" class="section hidden">
         <!-- Header activitate -->
@@ -94,11 +151,11 @@
         <div id="worksheet-messages" class="messages"></div>
       </div>
 
-      <!-- MODIFICAT: Secțiunea de finalizare cu structura nouă -->
+      <!-- Secțiunea de finalizare cu structura nouă -->
       <div id="completion-section" class="section hidden">
         <div class="completion-content">
           <div class="completion-header">
-            <h2>🎉 Activitate finalizată!</h2>
+            <h2>Activitate finalizată!</h2>
             <p>Felicitări! Ai completat cu succes toți pașii activității.</p>
           </div>
 
@@ -112,7 +169,7 @@
             <!-- Populat dinamic cu raportul AI -->
           </div>
 
-          <!-- NOUĂ: Container pentru butoanele de acțiune -->
+          <!-- Container pentru butoanele de acțiune -->
           <div id="completion-actions" class="completion-actions">
             <!-- Butoanele se adaugă dinamic de addCompletionActionButtons() -->
           </div>
@@ -232,19 +289,27 @@
         finishCurrentWorksheet();
       }
 
-      // MODIFICAT: Funcții pentru completarea activității
       function reviewAllSteps() {
         // Funcție pentru review
         showWorksheetReview();
       }
 
       function goToHomePage() {
-        // MODIFICAT: Folosește funcția din worksheet.js pentru confirmarea acțiunii
+        // Folosește funcția din worksheet.js pentru confirmarea acțiunii
         if (typeof handleGoHome === 'function') {
           handleGoHome();
         } else {
           // Fallback direct
           window.location.href = '/index.html';
+        }
+      }
+
+      // NOUĂ: Funcție pentru reluarea exercițiului din secțiunea anterioară
+      function handleRetryFromPrevious() {
+        if (typeof startNewAttemptFromPrevious === 'function') {
+          startNewAttemptFromPrevious();
+        } else {
+          console.error('Funcția startNewAttemptFromPrevious nu este definită');
         }
       }
 

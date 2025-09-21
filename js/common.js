@@ -183,8 +183,14 @@ function populateWorksheetHeader(authData) {
   document.getElementById('worksheet-status').textContent = statusText;
 }
 
-// Verifică statusul worksheet-ului și afișează secțiunea corespunzătoare
+// MODIFICAT: Verifică statusul worksheet-ului și afișează secțiunea corespunzătoare
 function checkWorksheetStatus(authData) {
+  // NOUĂ VERIFICARE: Dacă trebuie să afișezi informațiile despre încercarea anterioară
+  if (authData.session.show_previous_attempt_info) {
+    showPreviousAttemptInfo(authData);
+    return false; // Nu afișa worksheet-ul direct
+  }
+
   if (!authData.worksheet.is_active) {
     showReadOnlyMode(authData);
     return false;
@@ -199,6 +205,173 @@ function checkWorksheetStatus(authData) {
   document.getElementById('worksheet-section').classList.remove('hidden');
   populateWorksheetHeader(authData);
   return true;
+}
+
+// NOUĂ FUNCȚIE: Afișează informațiile despre încercarea anterioară
+function showPreviousAttemptInfo(authData) {
+  const previousSection = document.getElementById('previous-attempt-section');
+  if (!previousSection) {
+    console.error('Secțiunea previous-attempt-section nu a fost găsită în HTML');
+    return;
+  }
+
+  // Populează informațiile de bază
+  populatePreviousAttemptHeader(authData);
+
+  // Populează scorul anterior
+  populatePreviousScore(authData);
+
+  // Populează raportul anterior
+  populatePreviousReport(authData);
+
+  // Populează opțiunile disponibile
+  populatePreviousAttemptOptions(authData);
+
+  // Afișează secțiunea
+  previousSection.classList.remove('hidden');
+
+  console.log('Secțiunea pentru încercarea anterioară afișată cu succes');
+}
+
+// NOUĂ FUNCȚIE: Populează header-ul pentru încercarea anterioară
+function populatePreviousAttemptHeader(authData) {
+  const studentName = `${authData.student.name} ${authData.student.surname}`;
+  const worksheetTitle = `${
+    authData.worksheet.title
+  } - ${authData.worksheet.subject.toUpperCase()}`;
+
+  // Populează numele studentului și titlul activității
+  const prevStudentName = document.getElementById('prev-student-name');
+  const prevWorksheetTitle = document.getElementById('prev-worksheet-title');
+
+  if (prevStudentName) prevStudentName.textContent = studentName;
+  if (prevWorksheetTitle) prevWorksheetTitle.textContent = worksheetTitle;
+
+  // Populează detaliile încercării
+  const attemptDetails = document.getElementById('prev-attempt-details');
+  if (attemptDetails && authData.previous_attempt) {
+    const completedDate = new Date(authData.previous_attempt.completed_at).toLocaleDateString(
+      'ro-RO',
+      {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }
+    );
+
+    attemptDetails.textContent = `Încercarea ${authData.previous_attempt.attempt_number} - completată pe ${completedDate}`;
+  }
+}
+
+// NOUĂ FUNCȚIE: Populează scorul anterior
+function populatePreviousScore(authData) {
+  const previousScoreElement = document.getElementById('previous-score');
+  if (!previousScoreElement || !authData.previous_attempt) return;
+
+  const { total_score, max_score } = authData.previous_attempt;
+  const percentage = (total_score / max_score) * 100;
+
+  previousScoreElement.innerHTML = `
+    <div class="previous-score-display">
+      <span class="score-value">${total_score}/${max_score} puncte</span>
+      <span class="score-percent">(${percentage.toFixed(1)}%)</span>
+    </div>
+  `;
+
+  // Adaugă clasa CSS pe baza performanței
+  if (percentage >= 80) {
+    previousScoreElement.classList.add('excellent');
+  } else if (percentage >= 60) {
+    previousScoreElement.classList.add('good');
+  } else {
+    previousScoreElement.classList.add('needs-improvement');
+  }
+}
+
+// NOUĂ FUNCȚIE: Populează raportul anterior
+function populatePreviousReport(authData) {
+  const previousReportElement = document.getElementById('previous-report');
+  if (!previousReportElement || !authData.previous_attempt) return;
+
+  const globalFeedback = authData.previous_attempt.global_feedback;
+
+  if (globalFeedback) {
+    previousReportElement.innerHTML = `
+      <div class="previous-ai-report">
+        <div class="ai-report-content">${globalFeedback}</div>
+      </div>
+    `;
+  } else {
+    previousReportElement.innerHTML = `
+      <div class="no-report-message">
+        <p>Raportul AI nu a fost salvat pentru această încercare.</p>
+      </div>
+    `;
+  }
+}
+
+// NOUĂ FUNCȚIE: Populează opțiunile pentru încercarea anterioară
+function populatePreviousAttemptOptions(authData) {
+  const retryInfoText = document.getElementById('retry-info-text');
+  const retryButton = document.getElementById('retry-exercise-btn');
+
+  if (!retryInfoText || !retryButton) return;
+
+  const attemptsRemaining = authData.worksheet.max_attempts - authData.session.current_attempt + 1;
+
+  if (authData.session.can_start_new_attempt) {
+    // Poate începe o încercare nouă
+    retryButton.disabled = false;
+    retryButton.classList.remove('disabled');
+
+    retryInfoText.innerHTML = `
+      Mai poți face încă <strong>${attemptsRemaining}</strong> ${
+      attemptsRemaining === 1 ? 'încercare' : 'încercări'
+    }
+      la această activitate. Dacă refaci exercițiul, vei începe de la zero.
+    `;
+  } else {
+    // Nu mai poate face încercări
+    retryButton.disabled = true;
+    retryButton.classList.add('disabled');
+    retryButton.textContent = 'Nu mai poți reface exercițiul';
+
+    retryInfoText.innerHTML = `
+      Ai folosit toate cele <strong>${authData.worksheet.max_attempts}</strong> încercări disponibile
+      pentru această activitate.
+    `;
+  }
+}
+
+// NOUĂ FUNCȚIE: Începe o încercare nouă din secțiunea anterioară
+async function startNewAttemptFromPrevious() {
+  const retryBtn = document.getElementById('retry-exercise-btn');
+  if (!retryBtn) return;
+
+  // UI loading state
+  const originalText = retryBtn.textContent;
+  retryBtn.disabled = true;
+  retryBtn.textContent = 'Se pregătește exercițiul...';
+
+  try {
+    // Apelează funcția existentă pentru reset complet
+    await startNewAttempt();
+
+    // Ascunde secțiunea anterioară și afișează worksheet-ul
+    document.getElementById('previous-attempt-section').classList.add('hidden');
+    document.getElementById('worksheet-section').classList.remove('hidden');
+
+    showMessage('Exercițiu nou început! Poți începe din nou toate pașii.', 'success');
+  } catch (error) {
+    console.error('Eroare la începerea exercițiului nou din secțiunea anterioară:', error);
+    showMessage('Eroare la începerea exercițiului nou. Încearcă din nou.', 'error');
+
+    // Restaurează butonul
+    retryBtn.disabled = false;
+    retryBtn.textContent = originalText;
+  }
 }
 
 // Afișează modul read-only
@@ -224,7 +397,7 @@ function showMaxAttemptsReached(authData) {
   populateWorksheetHeader(authData);
 }
 
-// NOUA FUNCȚIE: Inițializează tracking-ul progresului cu logica condițională
+// Inițializează tracking-ul progresului cu logica condițională
 function initializeProgressTracking(authData, shouldRestoreInUI = null) {
   // Folosește flag-ul din authenticate.js dacă nu e specificat manual
   const shouldRestore =
@@ -276,7 +449,7 @@ function restoreExistingProgress(progressData) {
   });
 }
 
-// NOUA FUNCȚIE: Începe o încercare nouă (resetează totul)
+// Începe o încercare nouă (resetează totul)
 async function startNewAttempt() {
   if (!authenticationData) {
     showMessage('Date de autentificare lipsă', 'error');
@@ -316,7 +489,7 @@ async function startNewAttempt() {
   }
 }
 
-// NOUA FUNCȚIE: Resetează complet interfața worksheet-ului
+// Resetează complet interfața worksheet-ului
 function resetWorksheetInterface() {
   // Șterge toate mesajele
   clearMessages();
@@ -365,7 +538,7 @@ function resetWorksheetInterface() {
   console.log('Interfață worksheet resetată complet');
 }
 
-// FUNCȚIE AJUSTATĂ: Navighează la primul pas disponibil (pentru exercițiu curat)
+// Navighează la primul pas disponibil (pentru exercițiu curat)
 function navigateToFirstAvailableStep() {
   // Pentru exercițiu curat, începe mereu de la primul pas
   currentStepIndex = 0;
@@ -657,7 +830,7 @@ function getStepAnswer(stepIndex) {
   return null;
 }
 
-// NOUA FUNCȚIE: Pentru validarea la submit (folosită din worksheet.js)
+// Pentru validarea la submit (folosită din worksheet.js)
 function updateSubmitButtonState(stepIndex) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const submitBtn = stepElement.querySelector('.submit-step-btn');
@@ -680,7 +853,7 @@ function updateSubmitButtonState(stepIndex) {
   submitBtn.classList.toggle('enabled', hasValidAnswer);
 }
 
-// NOUA FUNCȚIE: Verifică dacă pasul are răspuns valid
+// Verifică dacă pasul are răspuns valid
 function checkStepHasValidAnswer(stepIndex) {
   const stepData = worksheetSteps[stepIndex];
 

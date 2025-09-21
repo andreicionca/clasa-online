@@ -98,7 +98,7 @@ exports.handler = async (event) => {
     // 4. Verifică încercările existente și determină statusul curent
     const { data: attempts, error: attemptsError } = await supabase
       .from('worksheet_attempts')
-      .select('attempt_number, is_completed')
+      .select('attempt_number, is_completed, total_score, completed_at, global_feedback')
       .eq('student_id', student.id)
       .eq('worksheet_id', worksheet.id)
       .order('attempt_number', { ascending: false });
@@ -113,7 +113,32 @@ exports.handler = async (event) => {
     // Determină dacă ultima încercare a fost completată
     const lastAttemptCompleted = attempts.length > 0 ? attempts[0].is_completed : false;
 
-    // 5. Logica pentru încărcarea progresului
+    // 5. NOUĂ FUNCȚIONALITATE: Încarcă datele din ultima încercare completă pentru afișare
+    let previousAttemptData = null;
+    if (lastAttemptCompleted && attempts.length > 0) {
+      const lastCompletedAttempt = attempts.find((attempt) => attempt.is_completed);
+
+      if (lastCompletedAttempt) {
+        // Calculează scorul maxim posibil din structura worksheet-ului
+        const maxScore = worksheet.structure.steps.reduce((sum, step) => sum + step.points, 0);
+
+        previousAttemptData = {
+          attempt_number: lastCompletedAttempt.attempt_number,
+          total_score: lastCompletedAttempt.total_score || 0,
+          max_score: maxScore,
+          completed_at: lastCompletedAttempt.completed_at,
+          global_feedback: lastCompletedAttempt.global_feedback || null,
+        };
+
+        console.log('Încercare anterioară găsită:', {
+          attempt: previousAttemptData.attempt_number,
+          score: previousAttemptData.total_score,
+          maxScore: previousAttemptData.max_score,
+        });
+      }
+    }
+
+    // 6. Logica pentru încărcarea progresului curent (doar pentru încercări necompletate)
     let currentProgress = null;
     let shouldRestoreProgress = false;
 
@@ -136,10 +161,13 @@ exports.handler = async (event) => {
       // Dacă ultima încercare A fost completată, nu încărca progresul (exercițiu curat)
     }
 
-    // 6. Determină dacă poate începe o încercare nouă
+    // 7. Determină dacă poate începe o încercare nouă
     const canStartNewAttempt = lastAttemptCompleted && hasAttemptsLeft;
 
-    // 7. Succes - returnează toate datele necesare
+    // 8. Determină ce secțiune să afișeze
+    const showPreviousAttemptInfo = lastAttemptCompleted && worksheet.is_active && hasAttemptsLeft;
+
+    // 9. Succes - returnează toate datele necesare
     return {
       statusCode: 200,
       headers: {
@@ -173,7 +201,9 @@ exports.handler = async (event) => {
           should_restore_progress: shouldRestoreProgress, // Flag pentru frontend
           last_attempt_completed: lastAttemptCompleted,
           can_start_new_attempt: canStartNewAttempt,
+          show_previous_attempt_info: showPreviousAttemptInfo, // NOUĂ: Flag pentru secțiunea anterioară
         },
+        previous_attempt: previousAttemptData, // NOUĂ: Datele din încercarea anterioară
       }),
     };
   } catch (error) {
