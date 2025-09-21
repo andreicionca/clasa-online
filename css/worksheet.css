@@ -993,3 +993,19 @@ body {
     margin: 0 auto;
   }
 }
+
+/* Blochează selecția textului în câmpurile de răspuns */
+.short-answer {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Opcional: și pentru întrebări */
+.question-text {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
