@@ -609,6 +609,74 @@ function restoreStepAnswer(stepIndex, answer) {
 }
 
 // Funcție principală pentru trimiterea unei sarcini către server cu retry logic
+// async function submitStepToServer(stepIndex, answer) {
+//   if (!authenticationData) {
+//     showMessage('Date de autentificare lipsă', 'error');
+//     return false;
+//   }
+
+//   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+//   const submitBtn = stepElement.querySelector('.submit-step-btn');
+
+//   // Setează UI în stare de loading
+//   setStepSubmitLoadingState(stepElement, true);
+
+//   try {
+//     const response = await fetch('/.netlify/functions/submit-step', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         studentId: authenticationData.student.id,
+//         worksheetId: authenticationData.worksheet.id,
+//         stepNumber: stepIndex + 1, // Convert to 1-based
+//         answer: answer,
+//         attemptNumber: authenticationData.session.current_attempt,
+//       }),
+//     });
+
+//     const data = await response.json();
+
+//     if (data.success) {
+//       // Succes - marchează sarcina ca completată permanent
+//       studentProgress[stepIndex] = {
+//         completed: true,
+//         answer: answer,
+//         feedback: data.feedback,
+//         score: data.score,
+//       };
+
+//       // Afișează feedback-ul și marchează UI-ul ca completat
+//       showStepFeedback(stepIndex, data.feedback, data.score);
+//       setStepCompletedState(stepElement);
+
+//       // Actualizează navigarea și progresul
+//       updateNavigation();
+//       updateProgressDisplay();
+
+//       showMessage(data.message || 'Răspuns evaluat cu succes!', 'success');
+//       return true;
+//     } else {
+//       // Eroare de la server
+//       setStepSubmitErrorState(stepElement, data.error);
+
+//       // Verifică dacă e retry-able
+//       if (data.retryable) {
+//         showRetryMessage(stepIndex, data.error);
+//       } else {
+//         showMessage(data.error || 'Eroare la trimiterea răspunsului', 'error');
+//       }
+//       return false;
+//     }
+//   } catch (error) {
+//     console.error('Eroare de rețea în submit step:', error);
+//     setStepSubmitErrorState(stepElement, 'Eroare de conexiune');
+//     showRetryMessage(stepIndex, 'Eroare de conexiune. Te rugăm să încerci din nou.');
+//     return false;
+//   }
+// }
+
 async function submitStepToServer(stepIndex, answer) {
   if (!authenticationData) {
     showMessage('Date de autentificare lipsă', 'error');
@@ -621,6 +689,10 @@ async function submitStepToServer(stepIndex, answer) {
   // Setează UI în stare de loading
   setStepSubmitLoadingState(stepElement, true);
 
+  // Calculează durata totală a mesajelor
+  const totalMessageDuration = loadingMessages.reduce((sum, msg) => sum + msg.duration, 0);
+  const startTime = Date.now();
+
   try {
     const response = await fetch('/.netlify/functions/submit-step', {
       method: 'POST',
@@ -630,7 +702,7 @@ async function submitStepToServer(stepIndex, answer) {
       body: JSON.stringify({
         studentId: authenticationData.student.id,
         worksheetId: authenticationData.worksheet.id,
-        stepNumber: stepIndex + 1, // Convert to 1-based
+        stepNumber: stepIndex + 1,
         answer: answer,
         attemptNumber: authenticationData.session.current_attempt,
       }),
@@ -638,8 +710,15 @@ async function submitStepToServer(stepIndex, answer) {
 
     const data = await response.json();
 
+    // Calculează timpul rămas pentru mesaje
+    const elapsedTime = Date.now() - startTime;
+    const remainingTime = Math.max(0, totalMessageDuration - elapsedTime);
+
+    // Așteaptă să se termine mesajele înainte să afișezi răspunsul
+    await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
     if (data.success) {
-      // Succes - marchează sarcina ca completată permanent
+      // Restul codului rămâne la fel...
       studentProgress[stepIndex] = {
         completed: true,
         answer: answer,
@@ -647,21 +726,16 @@ async function submitStepToServer(stepIndex, answer) {
         score: data.score,
       };
 
-      // Afișează feedback-ul și marchează UI-ul ca completat
       showStepFeedback(stepIndex, data.feedback, data.score);
       setStepCompletedState(stepElement);
-
-      // Actualizează navigarea și progresul
       updateNavigation();
       updateProgressDisplay();
 
       showMessage(data.message || 'Răspuns evaluat cu succes!', 'success');
       return true;
     } else {
-      // Eroare de la server
+      // Eroare handling...
       setStepSubmitErrorState(stepElement, data.error);
-
-      // Verifică dacă e retry-able
       if (data.retryable) {
         showRetryMessage(stepIndex, data.error);
       } else {
@@ -670,6 +744,11 @@ async function submitStepToServer(stepIndex, answer) {
       return false;
     }
   } catch (error) {
+    // Calculează timpul rămas și pentru catch
+    const elapsedTime = Date.now() - startTime;
+    const remainingTime = Math.max(0, totalMessageDuration - elapsedTime);
+    await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
     console.error('Eroare de rețea în submit step:', error);
     setStepSubmitErrorState(stepElement, 'Eroare de conexiune');
     showRetryMessage(stepIndex, 'Eroare de conexiune. Te rugăm să încerci din nou.');
