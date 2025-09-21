@@ -109,19 +109,19 @@ function moveToPreviousStep() {
   }
 }
 
-// Verifică dacă pasul curent este completat
+// Verifică dacă sarcina curentă este completată
 function isCurrentStepCompleted() {
   return studentProgress[currentStepIndex] && studentProgress[currentStepIndex].completed;
 }
 
-// Afișează pasul curent
+// Afișează sarcina curentă
 function showCurrentStep() {
-  // Ascunde toate pașii
+  // Ascunde toate sarcinile
   document.querySelectorAll('.step').forEach((step) => {
     step.classList.add('hidden');
   });
 
-  // Afișează pasul curent
+  // Afișează sarcina curentă
   const currentStep = document.querySelector(`[data-step-index="${currentStepIndex}"]`);
   if (currentStep) {
     currentStep.classList.remove('hidden');
@@ -133,11 +133,11 @@ function showCurrentStep() {
 
 // REFACTORIZAT: Actualizează afișajul progresului bazat pe completion
 function updateProgressDisplay() {
-  // Actualizează numărul pasului curent - mereu afișat ca "Pas X din Y"
+  // Actualizează numărul sarcinii curente - mereu afișat ca "Sarcina X din Y"
   document.getElementById('current-step').textContent = currentStepIndex + 1;
   document.getElementById('total-steps').textContent = worksheetSteps.length;
 
-  // Progress bar bazat pe pași completați, nu pe punctaje
+  // Progress bar bazat pe sarcini completate, nu pe punctaje
   const completedSteps = Object.values(studentProgress).filter((p) => p && p.completed).length;
   const progressPercentage = (completedSteps / worksheetSteps.length) * 100;
   document.getElementById('progress-fill').style.width = `${progressPercentage}%`;
@@ -388,8 +388,6 @@ async function startNewAttemptFromPrevious() {
     // Ascunde secțiunea anterioară și afișează worksheet-ul
     document.getElementById('previous-attempt-section').classList.add('hidden');
     document.getElementById('worksheet-section').classList.remove('hidden');
-
-    showMessage('Exercițiu nou început! Poți începe din nou toate pașii.', 'success');
   } catch (error) {
     console.error('Eroare la începerea exercițiului nou din secțiunea anterioară:', error);
     showMessage('Eroare la începerea exercițiului nou. Încearcă din nou.', 'error');
@@ -432,7 +430,7 @@ function initializeProgressTracking(authData, shouldRestoreInUI = null) {
   // Resetează progresul local
   studentProgress = {};
 
-  // Inițializează fiecare pas
+  // Inițializează fiecare sarcină
   worksheetSteps.forEach((_, index) => {
     studentProgress[index] = {
       completed: false,
@@ -496,7 +494,7 @@ async function startNewAttempt() {
     // Reinițializează progresul fără restaurare
     initializeProgressTracking(authenticationData, false);
 
-    // Navighează la primul pas
+    // Navighează la prima sarcină disponibilă
     navigateToFirstAvailableStep();
 
     // Actualizează header-ul cu noul număr de încercare
@@ -554,7 +552,7 @@ function resetWorksheetInterface() {
       wordCountDiv.className = 'word-count empty';
     }
 
-    // Șterge clasa de pas completat
+    // Șterge clasa de sarcină completată
     stepElement.classList.remove('step-completed');
   });
 
@@ -564,17 +562,17 @@ function resetWorksheetInterface() {
   console.log('Interfață worksheet resetată complet');
 }
 
-// Navighează la primul pas disponibil (pentru exercițiu curat)
+// Navighează la prima sarcină disponibilă (pentru exercițiu curat)
 function navigateToFirstAvailableStep() {
-  // Pentru exercițiu curat, începe mereu de la primul pas
+  // Pentru exercițiu curat, începe mereu de la prima sarcină
   currentStepIndex = 0;
 
-  // Afișează primul pas
+  // Afișează prima sarcină
   showCurrentStep();
   updateNavigation();
 }
 
-// Restaurează răspunsul unui pas în interfață
+// Restaurează răspunsul unei sarcini în interfață
 function restoreStepAnswer(stepIndex, answer) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const stepData = worksheetSteps[stepIndex];
@@ -598,7 +596,7 @@ function restoreStepAnswer(stepIndex, answer) {
   setStepCompletedState(stepElement);
 }
 
-// Funcție principală pentru trimiterea unui pas către server cu retry logic
+// Funcție principală pentru trimiterea unei sarcini către server cu retry logic
 async function submitStepToServer(stepIndex, answer) {
   if (!authenticationData) {
     showMessage('Date de autentificare lipsă', 'error');
@@ -629,7 +627,7 @@ async function submitStepToServer(stepIndex, answer) {
     const data = await response.json();
 
     if (data.success) {
-      // Succés - marchează pasul ca completat permanent
+      // Succes - marchează sarcina ca completată permanent
       studentProgress[stepIndex] = {
         completed: true,
         answer: answer,
@@ -723,7 +721,7 @@ function setStepCompletedState(stepElement) {
     input.disabled = true;
   });
 
-  // Adaugă clasa de completat la întregul pas
+  // Adaugă clasa de completat la întreaga sarcină
   stepElement.classList.add('step-completed');
 }
 
@@ -765,7 +763,7 @@ function retryCurrentStep(stepIndex) {
   }
 }
 
-// REFACTORIZAT: Afișează feedback-ul pentru un pas - fără hardcoding de scoring
+// REFACTORIZAT: Afișează feedback-ul pentru o sarcină - fără hardcoding de scoring
 function showStepFeedback(stepIndex, feedback, score = null) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const feedbackContainer = stepElement.querySelector('.feedback');
@@ -887,7 +885,7 @@ function updateSubmitButtonState(stepIndex) {
   submitBtn.classList.toggle('enabled', hasValidAnswer);
 }
 
-// Verifică dacă pasul are răspuns valid
+// Verifică dacă sarcina are răspuns valid
 function checkStepHasValidAnswer(stepIndex) {
   const stepData = worksheetSteps[stepIndex];
 

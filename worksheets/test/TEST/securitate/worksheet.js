@@ -22,13 +22,13 @@ function initializeSpecificWorksheet(authData) {
   // Construiește interfața dinamică
   buildWorksheetInterface();
 
-  // Populează punctajele pentru fiecare pas, dacă este cazul
+  // Populează punctajele pentru fiecare sarcină, dacă este cazul
   populateStepPoints();
 
   // Folosește funcția din common.js cu logica condițională
   initializeProgressTracking(authData);
 
-  // Afișează primul pas disponibil
+  // Afișează prima sarcină disponibilă
   navigateToFirstAvailableStep();
 }
 
@@ -64,7 +64,7 @@ function populateStepPoints() {
   });
 }
 
-// Creează un pas folosind template-urile HTML
+// Creează un sarcina folosind template-urile HTML
 function createStepFromTemplate(stepData, stepIndex) {
   const templateId = stepData.type === 'grila' ? 'grila-step-template' : 'short-step-template';
   const template = document.getElementById(templateId);
@@ -95,12 +95,12 @@ function createStepFromTemplate(stepData, stepIndex) {
   return stepElement;
 }
 
-// Configurează un pas cu grile
+// Configurează o sarcină cu grile
 function setupGrilaStep(stepElement, stepData, stepIndex) {
   const optionsContainer = stepElement.querySelector('.options');
 
   if (!stepData.options || stepData.options.length === 0) {
-    console.error(`Opțiunile lipsesc pentru pasul ${stepIndex + 1}`);
+    console.error(`Opțiunile lipsesc pentru sarcina ${stepIndex + 1}`);
     return;
   }
 
@@ -130,7 +130,7 @@ function setupGrilaStep(stepElement, stepData, stepIndex) {
   });
 }
 
-// Configurează un pas cu răspuns scurt
+// Configurează o sarcină cu răspuns scurt
 function setupShortStep(stepElement, stepData, stepIndex) {
   const textarea = stepElement.querySelector('.short-answer');
   const wordCountDiv = stepElement.querySelector('.word-count');
@@ -201,7 +201,7 @@ function setupShortStep(stepElement, stepData, stepIndex) {
   });
 }
 
-// Funcția pentru trimiterea pasului curent - apelată din HTML
+// Funcția pentru trimiterea sarcinii curente - apelată din HTML
 function submitCurrentStepWorksheet() {
   if (!checkStepHasValidAnswer(currentStepIndex)) {
     showMessage('Completează răspunsul înainte de a-l trimite', 'warning');

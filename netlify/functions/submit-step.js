@@ -164,7 +164,7 @@ exports.handler = async (event) => {
     // 5. Verifică și validează structura pasului
     const steps = worksheet.structure.steps || [];
     if (stepNumber < 1 || stepNumber > steps.length) {
-      console.error('Numărul pasului invalid:', { stepNumber, totalSteps: steps.length });
+      console.error('Numărul sarcinii invalid:', { stepNumber, totalSteps: steps.length });
       return {
         statusCode: 400,
         headers: {

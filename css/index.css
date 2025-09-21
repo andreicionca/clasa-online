@@ -1,0 +1,294 @@
+/* Reset și variabile */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary-color: #2196f3;
+  --secondary-color: #4caf50;
+  --warning-color: #ff9800;
+  --error-color: #f44336;
+  --bg-color: #f5f5f5;
+  --card-bg: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --border-color: #e0e0e0;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --radius: 8px;
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+}
+
+/* Bază mobile-first */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--bg-color);
+  font-size: 16px;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: var(--spacing-sm);
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+}
+
+.logo {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-xs);
+}
+
+.tagline {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* Notificare construcție */
+.construction-notice {
+  background: linear-gradient(135deg, var(--warning-color), #ffb74d);
+  color: white;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius);
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow);
+}
+
+.construction-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.construction-notice h2 {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 600;
+}
+
+.construction-notice p {
+  margin-bottom: var(--spacing-md);
+  opacity: 0.9;
+}
+
+.status-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Secțiunea de preview */
+.worksheets-preview {
+  flex: 1;
+  margin-bottom: var(--spacing-lg);
+}
+
+.worksheets-preview h3 {
+  font-size: 1.25rem;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.worksheets-grid {
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: 1fr;
+}
+
+/* Card-uri pentru fișe */
+.worksheet-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.worksheet-card.available:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.worksheet-card.coming-soon {
+  opacity: 0.7;
+  position: relative;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.subject-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.subject-badge.tic {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.subject-badge.religie {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.subject-badge.dirigentie {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.grade-badge {
+  background: var(--text-muted);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.card-content h4 {
+  font-size: 1.1rem;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.card-content p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.card-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.stat-icon {
+  font-size: 0.9rem;
+}
+
+.coming-soon-badge {
+  background: var(--warning-color);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.card-actions {
+  margin-top: var(--spacing-sm);
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1976d2;
+  transform: translateY(-1px);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: var(--spacing-md) 0;
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.version {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* Responsive design */
+@media (min-width: 640px) {
+  .container {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+
+  .worksheets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .logo {
+    font-size: 2.5rem;
+  }
+
+  .btn {
+    width: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1200px;
+    padding: var(--spacing-lg) var(--spacing-xl);
+  }
+
+  .worksheets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .construction-notice {
+    padding: var(--spacing-xl);
+  }
+}

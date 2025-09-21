@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clasa Online - Fișe de lucru interactive</title>
+    <link rel="stylesheet" href="css/index.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-content">
+          <h1 class="logo">Clasa Online</h1>
+          <p class="tagline">Fișe de lucru interactive</p>
+        </div>
+      </header>
+
+      <!-- Status de construcție -->
+      <section class="construction-notice">
+        <div class="construction-content">
+          <div class="construction-icon">🚧</div>
+          <h2>Pagina este în construcție</h2>
+          <p>Lucrăm pentru a aduce toate fișele de lucru într-un singur loc</p>
+          <div class="progress-info">
+            <span class="status-badge">În dezvoltare</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Preview pentru viitoarele fișe -->
+      <section class="worksheets-preview">
+        <h3>Fișele de lucru disponibile</h3>
+        <div class="worksheets-grid">
+          <!-- Fișă disponibilă -->
+          <div class="worksheet-card available">
+            <div class="card-header">
+              <span class="subject-badge tic">TIC</span>
+              <span class="grade-badge">XII</span>
+            </div>
+            <div class="card-content">
+              <h4>Securitatea în mediul digital</h4>
+              <p>Exercițiu interactiv despre protecția datelor și malware</p>
+              <div class="card-stats">
+                <span class="stat">
+                  <span class="stat-icon">📝</span>
+                  4 sarcini
+                </span>
+                <span class="stat">
+                  <span class="stat-icon">⏱️</span>
+                  ~15 min
+                </span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <a href="worksheet.html" class="btn btn-primary">Începe exercițiul</a>
+            </div>
+          </div>
+
+          <!-- Fișe în construcție -->
+          <div class="worksheet-card coming-soon">
+            <div class="card-header">
+              <span class="subject-badge religie">Religie</span>
+              <span class="grade-badge">XI</span>
+            </div>
+            <div class="card-content">
+              <h4>Valorile creștine moderne</h4>
+              <p>Reflecții asupra valorilor în societatea contemporană</p>
+              <div class="coming-soon-badge">În curând</div>
+            </div>
+          </div>
+
+          <div class="worksheet-card coming-soon">
+            <div class="card-header">
+              <span class="subject-badge dirigentie">Dirigentie</span>
+              <span class="grade-badge">X</span>
+            </div>
+            <div class="card-content">
+              <h4>Orientarea profesională</h4>
+              <p>Exercițiu de autodescoperire și planificare carieră</p>
+              <div class="coming-soon-badge">În curând</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>Platforma educațională interactivă</p>
+        <p class="version">Versiunea 1.0 - Beta</p>
+      </footer>
+    </div>
+
+    <script src="js/index.js"></script>
+  </body>
+</html>

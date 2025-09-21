@@ -1,6 +1,6 @@
 // netlify/functions/worksheet-submit-test-TEST-securitate.js
 // Funcția AI specializată pentru feedback-ul activității de securitate digitală
-// Gestionează atât feedback-ul per pas cât și raportul final
+// Gestionează atât feedback-ul per sarcina cât și raportul final
 
 const OpenAI = require('openai');
 
@@ -94,7 +94,7 @@ PROGRESUL COMPLETAT:
 ${performanceData.stepResults
   .map(
     (step, index) => `
-Pas ${index + 1} (${allStepsData[index].type}): "${allStepsData[index].question}"
+Sarcina ${index + 1} (${allStepsData[index].type}): "${allStepsData[index].question}"
 Feedback individual: "${step.feedback.substring(0, 80)}..."
 `
   )
@@ -125,7 +125,7 @@ PERFORMANȚA COMPLETĂ:
 ${performanceData.stepResults
   .map(
     (step, index) => `
-Pas ${index + 1} (${allStepsData[index].type}): "${allStepsData[index].question}"
+Sarcina ${index + 1} (${allStepsData[index].type}): "${allStepsData[index].question}"
 Punctaj obținut: ${step.score}/${allStepsData[index].points}
 Feedback individual: "${step.feedback.substring(0, 80)}..."
 `
@@ -204,13 +204,13 @@ exports.handler = async (event) => {
   }
 };
 
-// MODIFICAT: Gestionează feedback-ul pentru un pas individual cu configurare flexibilă
+// MODIFICAT: Gestionează feedback-ul pentru o sarcină individuală cu configurare flexibilă
 async function handleStepFeedback(requestData) {
   const { stepData, answer, student, isCorrect, exerciseConfig } = requestData;
 
   // Validare date de intrare
   if (!stepData || answer === undefined || answer === null || !student || !exerciseConfig) {
-    console.error('Date incomplete pentru AI feedback pas:', {
+    console.error('Date incomplete pentru AI feedback, sarcina:', {
       stepData: !!stepData,
       answer,
       student: !!student,
@@ -371,7 +371,7 @@ async function handleStepFeedback(requestData) {
       throw new Error('Feedback-ul AI este prea scurt sau invalid');
     }
 
-    console.log('Feedback AI per pas generat cu succes:', {
+    console.log('Feedback AI per sarcina generat cu succes:', {
       type: stepData.type,
       score: score,
       hasScoring: exerciseConfig.has_scoring,
@@ -403,7 +403,7 @@ async function handleStepFeedback(requestData) {
     };
   } catch (error) {
     // Log eroarea detailat pentru debugging
-    console.error('Eroare AI feedback per pas:', {
+    console.error('Eroare AI feedback per sarcina:', {
       error: error.message,
       stack: error.stack,
       stepType: stepData?.type,
