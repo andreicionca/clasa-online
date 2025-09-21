@@ -927,7 +927,7 @@ function showStepFeedback(stepIndex, feedback, score = null) {
 
   // Afișează feedback-ul AI
   if (textElement) {
-    textElement.textContent = feedback;
+    textElement.innerHTML = formatFeedbackText(feedback); // În loc de textContent
   }
 
   // Afișează feedback-ul cu animație
@@ -1110,4 +1110,44 @@ function showConfirmModal(title, message, onConfirm, confirmText = 'Da', cancelT
 
   // Afișează modal-ul
   setTimeout(() => overlay.classList.add('show'), 10);
+}
+
+// Funcție pentru formatarea feedback-ului cu bullet points
+function formatFeedbackText(text) {
+  if (!text) return text;
+
+  // Convertește bullet points în liste HTML
+  const lines = text.split('\n');
+  let formattedLines = [];
+  let inList = false;
+
+  for (let line of lines) {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+      if (!inList) {
+        formattedLines.push('<ul>');
+        inList = true;
+      }
+      const listItem = trimmedLine.replace(/^[•-]\s*/, '');
+      formattedLines.push(`<li>${listItem}</li>`);
+    } else if (trimmedLine === '' && inList) {
+      // Linie goală în timpul unei liste
+      continue;
+    } else {
+      if (inList) {
+        formattedLines.push('</ul>');
+        inList = false;
+      }
+      if (trimmedLine !== '') {
+        formattedLines.push(`<p>${trimmedLine}</p>`);
+      }
+    }
+  }
+
+  if (inList) {
+    formattedLines.push('</ul>');
+  }
+
+  return formattedLines.join('');
 }

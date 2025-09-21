@@ -435,11 +435,11 @@ function displayCompletionWithAIReport(totalScore, maxScore, aiReport, exerciseC
   // Afișează raportul AI
   const feedbackElement = document.getElementById('final-feedback');
   feedbackElement.innerHTML = `
-    <div class="ai-final-report">
-      <h4>Raport final - Securitate Digitală</h4>
-      <div class="ai-report-content">${aiReport}</div>
-    </div>
-  `;
+  <div class="ai-final-report">
+    <h4>Raport final - Securitate Digitală</h4>
+    <div class="ai-report-content">${formatFeedbackText(aiReport)}</div>
+  </div>
+`;
 
   // Adaugă butoanele de acțiune
   addCompletionActionButtons();

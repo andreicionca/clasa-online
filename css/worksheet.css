@@ -308,40 +308,89 @@ body {
 .step-actions {
   margin-bottom: 16px;
 }
-
+/* Înlocuiește stilizarea existentă pentru .submit-step-btn */
 .submit-step-btn {
   width: 100%;
   padding: 12px;
-  background: #dc2626;
+  /* Schimbă de la roșu la gradient vibrant inspirat de Copilot */
+  background: linear-gradient(
+    135deg,
+    #0066cc 0%,
+    #00a86b 25%,
+    #ffd700 50%,
+    #ff69b4 75%,
+    #9b59b6 100%
+  );
+  background-size: 200% 200%;
   color: white;
   border: none;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  animation: gradientShift 3s ease-in-out infinite;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Animație pentru gradient dinamic */
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .submit-step-btn:disabled {
   background: #d1d5db;
   cursor: not-allowed;
+  animation: none;
+  text-shadow: none;
 }
 
 .submit-step-btn.enabled {
-  background: #dc2626;
+  /* Păstrează gradientul vibrant când e activat */
+  background: linear-gradient(
+    135deg,
+    #0066cc 0%,
+    #00a86b 25%,
+    #ffd700 50%,
+    #ff69b4 75%,
+    #9b59b6 100%
+  );
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease-in-out infinite;
 }
 
 .submit-step-btn.enabled:hover {
-  background: #b91c1c;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 102, 204, 0.4);
+  animation-duration: 1.5s; /* Accelerează animația la hover */
 }
 
 .submit-step-btn.completed {
-  background: #059669;
+  background: linear-gradient(135deg, #10b981, #34d399);
   cursor: default;
   transform: none;
+  animation: none;
 }
 
+/* Pentru loading state - păstrează gradientul dar cu opacitate redusă */
+.submit-step-btn.loading {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 102, 204, 0.7) 0%,
+    rgba(0, 168, 107, 0.7) 25%,
+    rgba(255, 215, 0, 0.7) 50%,
+    rgba(255, 105, 180, 0.7) 75%,
+    rgba(155, 89, 182, 0.7) 100%
+  );
+  cursor: wait;
+  animation: gradientShift 2s ease-in-out infinite;
+}
 /* === FEEDBACK === */
 .feedback {
   border-top: 2px solid #f3f4f6;
@@ -1216,4 +1265,144 @@ body {
   .previous-score {
     font-size: 36px;
   }
+}
+
+/* === MODAL PERSONALIZAT === */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  transform: scale(0.8);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal {
+  transform: scale(1);
+}
+
+.modal h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.modal p {
+  color: #6b7280;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-btn.cancel:hover {
+  background: #e5e7eb;
+}
+
+.modal-btn.confirm {
+  background: #dc2626;
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background: #b91c1c;
+}
+
+/* === FORMATARE FEEDBACK STRUCTURAT === */
+.feedback-text,
+.ai-report-content,
+.previous-report {
+  white-space: pre-line; /* Păstrează line breaks */
+  line-height: 1.6;
+}
+
+/* Stilizează bullet points în feedback */
+.feedback-text,
+.ai-report-content,
+.previous-report {
+  font-size: 14px;
+  color: #374151;
+}
+
+/* Pentru bullet points cu emoji • */
+.feedback-text:has-text('•'),
+.ai-report-content:has-text('•'),
+.previous-report:has-text('•') {
+  padding-left: 8px;
+}
+
+/* Alternativ: Convertește bullet points în liste reale */
+.feedback-formatted ul,
+.ai-report-formatted ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.feedback-formatted li,
+.ai-report-formatted li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+/* Stiluri pentru bullet points mai vizibile */
+.feedback-text p,
+.ai-report-content p {
+  margin-bottom: 4px;
+}
+
+/* Îmbunătățește spațierea pentru text cu bullet points */
+.feedback-content,
+.ai-final-report {
+  line-height: 1.7;
+}
+
+.feedback-content .feedback-text,
+.ai-final-report .ai-report-content {
+  font-size: 15px;
+  color: #374151;
+  white-space: pre-line;
 }

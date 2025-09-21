@@ -24,12 +24,23 @@ Rezultat: ${isCorrect ? 'CORECT' : 'GREȘIT'}`;
     return `${basePrompt}
 
 Confirmă că răspunsul este corect și explică de ce această opțiune este cea mai bună pentru securitate digitală. Adaugă informații suplimentare utile despre acest concept.
+FORMATARE OBLIGATORIE:
+- Folosește bullet points cu "•" pentru fiecare idee principală
+- Separă fiecare punct pe linie nouă
+- Maxim 3 puncte principale
+- Fiecare punct să aibă maxim 1-2 propoziții
+
 
 RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI, FĂRĂ JSON SAU ALTE FORMATĂRI.`;
   } else {
     return `${basePrompt}
 
 Explică de ce răspunsul corect este superior opțiunii alese de elev. Menționează riscurile sau dezavantajele opțiunii selectate greșit și oferă sfaturi practice.
+FORMATARE OBLIGATORIE:
+- Folosește bullet points cu "•" pentru fiecare idee principală
+- Separă fiecare punct pe linie nouă
+- Maxim 3 puncte principale
+- Fiecare punct să aibă maxim 1-2 propoziții
 
 RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI, FĂRĂ JSON SAU ALTE FORMATĂRI.`;
   }
@@ -52,7 +63,12 @@ INSTRUCȚIUNI DE EVALUARE:
 - Explică ce este bun în răspuns și ce ar putea fi îmbunătățit
 - Oferă informații suplimentare relevante pentru securitatea digitală
 - Fii constructiv și motivant în feedback
-- Concentrează-te pe învățare, nu pe evaluare
+
+FORMATARE OBLIGATORIE:
+- Folosește bullet points cu "•" pentru fiecare idee principală
+- Separă fiecare punct pe linie nouă
+- Maxim 3-4 puncte principale
+- Fiecare punct să aibă maxim 1-2 propoziții
 
 RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI, FĂRĂ JSON SAU ALTE FORMATĂRI.`;
   } else {
@@ -72,12 +88,19 @@ INSTRUCȚIUNI DE EVALUARE:
 - Poți folosi valori cu 0.5 pentru răspunsuri parțial corecte
 - Pentru răspunsuri incomplete dar corecte, oferă punctaj parțial generos
 - Explică ce este bun în răspuns și ce ar putea fi îmbunătățit
-- Oferă informații suplimentare relevante pentru securitatea digitală
-- Fii constructiv și motivant în feedback
+
+FORMATARE OBLIGATORIE PENTRU FEEDBACK:
+- Folosește bullet points cu "•" pentru fiecare idee principală
+- Separă fiecare punct pe linie nouă
+- Maxim 3-4 puncte principale
+- Fiecare punct să aibă maxim 1-2 propoziții
 
 OBLIGATORIU - Răspunde EXACT în acest format:
 PUNCTAJ: [numărul de puncte]
-FEEDBACK: [textul feedback-ului educativ]`;
+FEEDBACK:
+- [primul punct principal]
+- [al doilea punct principal]
+- [al treilea punct principal]`;
   }
 }
 
@@ -103,12 +126,19 @@ Feedback individual: "${step.feedback.substring(0, 80)}..."
 ACTIVITATE FINALIZATĂ: Toate cele ${allStepsData.length} etape completate cu succes
 
 INSTRUCȚIUNI PENTRU RAPORTUL FINAL:
-- Oferă o analiză completă a progresului elevului la securitatea digitală
-- Identifică conceptele învățate și înțelegerea demonstrată
-- Oferă sfaturi concrete pentru dezvoltarea în continuare a cunoștințelor
+- Oferă o analiză completă și structurată
+- Identifică conceptele învățate și progresul demonstrat
+- Oferă sfaturi concrete pentru dezvoltarea în continuare
 - Încurajează elevul și subliniază învățarea obținută
-- Raportul să fie în 4-5 propoziții, motivant și educativ
-- Concentrează-te pe cunoștințele dobândite și aplicarea practică
+
+FORMATARE OBLIGATORIE:
+- Folosește bullet points cu "•" pentru fiecare idee principală
+- Separă fiecare punct pe linie nouă
+- Exact 4 puncte principale:
+  • Primul punct: Ce a învățat elevul
+  • Al doilea punct: Punctele forte demonstrate
+  • Al treilea punct: Domenii de îmbunătățire
+  • Al patrulea punct: Încurajare și pași următori
 
 RĂSPUNDE DOAR CU TEXTUL RAPORTULUI FINAL, FĂRĂ JSON SAU ALTE FORMATĂRI.`;
   } else {
