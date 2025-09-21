@@ -111,10 +111,18 @@ exports.handler = async (event) => {
       currentAttemptNumber = 0; // Nicio încercare
     } else {
       const lastAttempt = attempts[0];
-      if (lastAttempt.is_completed) {
-        currentAttemptNumber = lastAttempt.attempt_number; // Ultima încercare completată
+      let currentAttemptNumber;
+      if (attempts.length === 0) {
+        currentAttemptNumber = 0; // Nicio încercare
       } else {
-        currentAttemptNumber = lastAttempt.attempt_number - 1; // Încercarea curentă e în progres
+        const lastAttempt = attempts[0];
+        if (lastAttempt.is_completed) {
+          // Dacă ultima încercare e completată, următoarea va fi attempt_number + 1
+          currentAttemptNumber = lastAttempt.attempt_number;
+        } else {
+          // Dacă ultima încercare e în progres, continuă cu aceea
+          currentAttemptNumber = lastAttempt.attempt_number - 1;
+        }
       }
     }
     const hasAttemptsLeft = currentAttemptNumber < worksheet.max_attempts;

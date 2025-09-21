@@ -472,7 +472,7 @@ async function startNewAttempt() {
 
   try {
     // Creează o nouă încercare în baza de date prin incrementarea attempt-ului
-    const newAttemptNumber = authenticationData.session.current_attempt + 1;
+    const newAttemptNumber = authenticationData.session.current_attempt;
 
     // Actualizează datele locale
     authenticationData.session.current_attempt = newAttemptNumber;
