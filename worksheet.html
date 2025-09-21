@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fișă de lucru</title>
+    <title>Fișă de lucru nouă</title>
     <link rel="stylesheet" href="css/worksheet.css" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   </head>
@@ -105,13 +105,13 @@
 
       <!-- Secțiunea activitate -->
       <div id="worksheet-section" class="section hidden">
-        <!-- Header compact -->
-        <div class="compact-header">
-          <div class="activity-title" id="worksheet-title"></div>
-          <div class="student-line">
+        <!-- Header activitate -->
+        <div id="worksheet-header" class="worksheet-header">
+          <div class="student-info">
             <span id="student-name"></span>
-            <span class="attempt-badge" id="worksheet-status"></span>
+            <span id="worksheet-title"></span>
           </div>
+          <div class="worksheet-status" id="worksheet-status"></div>
         </div>
 
         <!-- Progress bar -->
@@ -120,7 +120,7 @@
             <div id="progress-fill" class="progress-fill"></div>
           </div>
           <div class="progress-text">
-            <span id="current-step">1</span> din <span id="total-steps">4</span> sarcini
+            <span id="current-step">1</span> din <span id="total-steps">4</span> pași
           </div>
         </div>
 
@@ -197,7 +197,8 @@
     <template id="grila-step-template">
       <div class="step" data-type="grila">
         <div class="step-header">
-          <h3 class="step-title">Sarcina <span class="step-number"></span></h3>
+          <h3 class="step-title">Pas <span class="step-number"></span></h3>
+          <div class="step-type">Alegere multiplă</div>
           <div class="step-points hidden"><!-- se va afișa dinamic --></div>
         </div>
 
@@ -224,7 +225,8 @@
     <template id="short-step-template">
       <div class="step" data-type="short">
         <div class="step-header">
-          <h3 class="step-title">Sarcina <span class="step-number"></span></h3>
+          <h3 class="step-title">Pas <span class="step-number"></span></h3>
+          <div class="step-type">Răspuns scurt</div>
           <div class="step-points hidden"><!-- se va afișa dinamic --></div>
         </div>
 
