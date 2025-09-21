@@ -170,7 +170,7 @@ function setupShortStep(stepElement, stepData, stepIndex) {
     const difference = currentLength - lastLength;
 
     // Dacă textul a crescut brusc cu mult (probabil paste)
-    if (difference > 12) {
+    if (difference > 15) {
       const revertValue = textarea.value.substring(0, lastLength);
       showPasteAlarm(e, revertValue);
       return; // Nu continuă cu restul logicii
