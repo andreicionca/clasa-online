@@ -136,36 +136,39 @@ function setupShortStep(stepElement, stepData, stepIndex) {
   const wordCountDiv = stepElement.querySelector('.word-count');
 
   // Blochează toate metodele de paste
-  textarea.addEventListener('paste', (e) => {
+  function showPasteWarning(e) {
     e.preventDefault();
-    showMessage(
-      '🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale idei💡',
-      'warning'
-    );
-  });
 
+    // Găsește containerul de feedback din pasul curent
+    const stepElement = e.target.closest('.step');
+    const feedbackContainer = stepElement.querySelector('.feedback');
+
+    // Afișează mesajul direct în pas
+    feedbackContainer.innerHTML = `
+      <div class="feedback-content paste-warning">
+        <div class="feedback-text">🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale cuvinte!</div>
+      </div>
+    `;
+
+    feedbackContainer.classList.remove('hidden');
+
+    // Șterge mesajul după 4 secunde
+    setTimeout(() => {
+      feedbackContainer.classList.add('hidden');
+    }, 4000);
+  }
+
+  // Blochează toate metodele de paste cu același mesaj
+  textarea.addEventListener('paste', showPasteWarning);
   textarea.addEventListener('copy', (e) => e.preventDefault());
   textarea.addEventListener('cut', (e) => e.preventDefault());
-
-  // Blochează drag & drop
-  textarea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    showMessage(
-      '🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale idei💡',
-      'warning'
-    );
-  });
-
+  textarea.addEventListener('drop', showPasteWarning);
   textarea.addEventListener('dragover', (e) => e.preventDefault());
 
   // Blochează combinații de taste
   textarea.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
-      e.preventDefault();
-      showMessage(
-        '🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale idei💡',
-        'warning'
-      );
+      showPasteWarning(e);
     }
   });
 
