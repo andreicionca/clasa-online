@@ -136,39 +136,37 @@ function setupShortStep(stepElement, stepData, stepIndex) {
   const wordCountDiv = stepElement.querySelector('.word-count');
 
   // Blochează toate metodele de paste
-  function showPasteWarning(e) {
+  function showPasteAlarm(e) {
     e.preventDefault();
 
-    // Găsește containerul de feedback din pasul curent
-    const stepElement = e.target.closest('.step');
-    const feedbackContainer = stepElement.querySelector('.feedback');
+    // Salvează conținutul original
+    const originalValue = textarea.value;
+    const originalStyle = textarea.style.cssText;
 
-    // Afișează mesajul direct în pas
-    feedbackContainer.innerHTML = `
-      <div class="feedback-content paste-warning">
-        <div class="feedback-text">🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale cuvinte!</div>
-      </div>
-    `;
+    // Afișează alarma în textarea
+    textarea.value =
+      '🚨 ChatGPT speaking: Te-am prins! Nu copia răspunsurile. Vreau să văd propriile tale idei! 🚨';
+    textarea.style.backgroundColor = '#ffeb3b';
+    textarea.style.color = '#d32f2f';
+    textarea.style.fontWeight = 'bold';
+    textarea.style.textAlign = 'center';
+    textarea.readOnly = true;
 
-    feedbackContainer.classList.remove('hidden');
-
-    // Șterge mesajul după 4 secunde
+    // Revine la normal după 3 secunde
     setTimeout(() => {
-      feedbackContainer.classList.add('hidden');
-    }, 4000);
+      textarea.value = originalValue;
+      textarea.style.cssText = originalStyle;
+      textarea.readOnly = false;
+      textarea.focus();
+    }, 3000);
   }
 
-  // Blochează toate metodele de paste cu același mesaj
-  textarea.addEventListener('paste', showPasteWarning);
-  textarea.addEventListener('copy', (e) => e.preventDefault());
-  textarea.addEventListener('cut', (e) => e.preventDefault());
-  textarea.addEventListener('drop', showPasteWarning);
-  textarea.addEventListener('dragover', (e) => e.preventDefault());
-
-  // Blochează combinații de taste
+  // Aplică alarma pentru toate metodele de paste
+  textarea.addEventListener('paste', showPasteAlarm);
+  textarea.addEventListener('drop', showPasteAlarm);
   textarea.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
-      showPasteWarning(e);
+      showPasteAlarm(e);
     }
   });
 
