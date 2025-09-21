@@ -135,6 +135,40 @@ function setupShortStep(stepElement, stepData, stepIndex) {
   const textarea = stepElement.querySelector('.short-answer');
   const wordCountDiv = stepElement.querySelector('.word-count');
 
+  // Blochează toate metodele de paste
+  textarea.addEventListener('paste', (e) => {
+    e.preventDefault();
+    showMessage(
+      '🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale idei💡',
+      'warning'
+    );
+  });
+
+  textarea.addEventListener('copy', (e) => e.preventDefault());
+  textarea.addEventListener('cut', (e) => e.preventDefault());
+
+  // Blochează drag & drop
+  textarea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    showMessage(
+      '🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale idei💡',
+      'warning'
+    );
+  });
+
+  textarea.addEventListener('dragover', (e) => e.preventDefault());
+
+  // Blochează combinații de taste
+  textarea.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      showMessage(
+        '🧠 ChatGPT speaking: Te-am prins! Sunt aici să te ajut să înveți, nu să îmi copiezi răspunsurile. Vreau să văd propriile tale idei💡',
+        'warning'
+      );
+    }
+  });
+
   // Event listeners pentru input și validare
   textarea.addEventListener('input', () => {
     updateWordCount(textarea, wordCountDiv);

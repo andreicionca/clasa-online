@@ -994,18 +994,16 @@ body {
   }
 }
 
-/* Blochează selecția textului în câmpurile de răspuns */
 .short-answer {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Opcional: și pentru întrebări */
-.question-text {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+/* Ascunde meniul contextual */
+.short-answer::-webkit-contacts-auto-fill-button {
+  display: none !important;
 }
