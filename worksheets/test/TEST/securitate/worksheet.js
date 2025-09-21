@@ -220,11 +220,12 @@ async function finalizeWorksheet() {
       throw new Error(finalReport?.error || 'Raportul AI nu a putut fi generat');
     }
 
-    // Marchează încercarea ca finalizată în baza de date
-    await markAttemptAsCompleted();
+    // Marchează încercarea ca finalizată în baza de date cu raportul AI
+    await markAttemptAsCompleted(finalReport.finalReport);
 
     // Afișează completarea cu raportul AI și butoanele noi
     displayCompletionWithAIReport(totalScore, maxScore, finalReport.finalReport, exerciseConfig);
+
     showMessage('Activitatea finalizată cu raport AI complet!', 'success');
   } catch (error) {
     console.error('Eroare finalizare AI:', error);
@@ -269,6 +270,7 @@ async function markAttemptAsCompleted() {
         studentId: authenticationData.student.id,
         worksheetId: authenticationData.worksheet.id,
         attemptNumber: authenticationData.session.current_attempt,
+        globalFeedback: globalFeedback,
       }),
     });
 

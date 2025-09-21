@@ -40,7 +40,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const { studentId, worksheetId, attemptNumber } = requestData;
+  const { studentId, worksheetId, attemptNumber, globalFeedback } = requestData;
 
   try {
     // Validare date de intrare
@@ -132,6 +132,7 @@ exports.handler = async (event) => {
         is_completed: true,
         completed_at: new Date().toISOString(),
         total_score: finalTotalScore,
+        global_feedback: globalFeedback,
       })
       .eq('id', existingAttempt.id);
 
