@@ -500,43 +500,44 @@ function addCompletionActionButtons() {
 
 // Gestionează reluarea exercițiului
 async function handleRetryExercise() {
-  // Confirmă acțiunea
-  if (!confirm('Sigur vrei să refaci exercițiul? Vei începe de la zero.')) {
-    return;
-  }
+  showConfirmModal(
+    'Refaci exercițiul?',
+    'Sigur vrei să refaci exercițiul? Vei începe de la zero și vei pierde progresul actual.',
+    async () => {
+      // Afișează loading
+      const retryBtn = document.querySelector('.retry-btn');
+      const originalText = retryBtn.textContent;
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Se pregătește exercițiul...';
 
-  // Afișează loading
-  const retryBtn = document.querySelector('.retry-btn');
-  const originalText = retryBtn.textContent;
-  retryBtn.disabled = true;
-  retryBtn.textContent = 'Se pregătește exercițiul...';
-
-  try {
-    // Apelează funcția din common.js pentru reset complet
-    await startNewAttempt();
-
-    // Tranzitia înapoi la worksheet
-    document.getElementById('completion-section').classList.add('hidden');
-    document.getElementById('worksheet-section').classList.remove('hidden');
-
-    showMessage('Exercițiu resetat cu succes! Poți începe din nou.', 'success');
-  } catch (error) {
-    console.error('Eroare la reluarea exercițiului:', error);
-    showMessage('Eroare la reluarea exercițiului. Încearcă din nou.', 'error');
-
-    // Restaurează butonul
-    retryBtn.disabled = false;
-    retryBtn.textContent = originalText;
-  }
+      try {
+        await startNewAttempt();
+        document.getElementById('completion-section').classList.add('hidden');
+        document.getElementById('worksheet-section').classList.remove('hidden');
+        showMessage('Exercițiu resetat cu succes! Poți începe din nou.', 'success');
+      } catch (error) {
+        console.error('Eroare la reluarea exercițiului:', error);
+        showMessage('Eroare la reluarea exercițiului. Încearcă din nou.', 'error');
+        retryBtn.disabled = false;
+        retryBtn.textContent = originalText;
+      }
+    },
+    'Da, refă exercițiul',
+    'Anulează'
+  );
 }
 
 // Gestionează întoarcerea acasă
 function handleGoHome() {
-  if (
-    confirm('Sigur vrei să părăsești această activitate și să te întorci la pagina principală?')
-  ) {
-    window.location.href = '/index.html';
-  }
+  showConfirmModal(
+    'Părăsești activitatea?',
+    'Sigur vrei să părăsești această activitate și să te întorci la pagina principală?',
+    () => {
+      window.location.href = '/index.html';
+    },
+    'Da, pleacă',
+    'Rămâi aici'
+  );
 }
 
 // Review mode - afișează toate pașii simultan

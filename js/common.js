@@ -1050,3 +1050,64 @@ function updateWordCount(textarea, wordCountElement) {
     }
   }
 }
+
+// Funcție globală pentru modal-uri de confirmare
+function showConfirmModal(title, message, onConfirm, confirmText = 'Da', cancelText = 'Anulează') {
+  // Verifică dacă există deja un modal
+  const existingModal = document.querySelector('.modal-overlay');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // Creează modal-ul
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>${title}</h3>
+      <p>${message}</p>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel">${cancelText}</button>
+        <button class="modal-btn confirm">${confirmText}</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Event listeners
+  const cancelBtn = overlay.querySelector('.cancel');
+  const confirmBtn = overlay.querySelector('.confirm');
+
+  const closeModal = () => {
+    overlay.classList.remove('show');
+    setTimeout(() => overlay.remove(), 300);
+  };
+
+  cancelBtn.onclick = closeModal;
+
+  confirmBtn.onclick = () => {
+    closeModal();
+    setTimeout(onConfirm, 100); // Mică întârziere pentru animație
+  };
+
+  // Închide la click pe overlay
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      closeModal();
+    }
+  };
+
+  // Închide cu Escape
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
+
+  // Afișează modal-ul
+  setTimeout(() => overlay.classList.add('show'), 10);
+}
