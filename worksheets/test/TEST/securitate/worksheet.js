@@ -261,7 +261,7 @@ async function finalizeWorksheet() {
 }
 
 // Marchează încercarea curentă ca fiind completă
-async function markAttemptAsCompleted() {
+async function markAttemptAsCompleted(globalFeedback = null) {
   try {
     const response = await fetch('/.netlify/functions/mark-attempt-completed', {
       method: 'POST',
