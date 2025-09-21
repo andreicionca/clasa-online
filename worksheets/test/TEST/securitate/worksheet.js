@@ -22,7 +22,7 @@ function initializeSpecificWorksheet(authData) {
   // Construiește interfața dinamică
   buildWorksheetInterface();
 
-  // Inițializează și încarcă progresul
+  // MODIFICAT: Folosește funcția din common.js cu logica condițională
   initializeProgressTracking(authData);
 
   // Afișează primul pas disponibil
@@ -128,130 +128,14 @@ function setupShortStep(stepElement, stepData, stepIndex) {
   });
 }
 
-// Actualizează starea butonului de submit
-function updateSubmitButtonState(stepIndex) {
-  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
-  const submitBtn = stepElement.querySelector('.submit-step-btn');
+// ȘTERS: updateSubmitButtonState și checkStepHasValidAnswer
+// - mutate în common.js pentru reutilizabilitate
 
-  if (!submitBtn) return;
+// ȘTERS: initializeProgressTracking, restoreExistingProgress, restoreStepAnswer
+// - mutate în common.js cu logica condițională
 
-  const hasValidAnswer = checkStepHasValidAnswer(stepIndex);
-  const isCompleted = studentProgress[stepIndex] && studentProgress[stepIndex].completed;
-
-  // Nu permite submit dacă e deja completat
-  if (isCompleted) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Completat';
-    submitBtn.classList.add('completed');
-    return;
-  }
-
-  // Activează/dezactivează pe baza validității răspunsului
-  submitBtn.disabled = !hasValidAnswer;
-  submitBtn.classList.toggle('enabled', hasValidAnswer);
-}
-
-// Verifică dacă pasul are răspuns valid
-function checkStepHasValidAnswer(stepIndex) {
-  const stepData = worksheetSteps[stepIndex];
-
-  if (stepData.type === 'grila') {
-    return isValidGrilaAnswer(stepIndex);
-  } else if (stepData.type === 'short') {
-    return isValidShortAnswer(stepIndex);
-  }
-
-  return false;
-}
-
-// Inițializează tracking-ul progresului
-function initializeProgressTracking(authData) {
-  // Resetează progresul local
-  studentProgress = {};
-
-  // Inițializează fiecare pas
-  worksheetSteps.forEach((_, index) => {
-    studentProgress[index] = {
-      completed: false,
-      answer: null,
-      feedback: null,
-      score: 0,
-    };
-  });
-
-  // Încarcă progresul existent din sesiune
-  if (authData.session.progress && authData.session.progress.length > 0) {
-    restoreExistingProgress(authData.session.progress);
-  }
-}
-
-// Restaurează progresul din baza de date
-function restoreExistingProgress(progressData) {
-  progressData.forEach((progressItem) => {
-    const stepIndex = progressItem.step_number - 1; // Convertire 0-based
-
-    if (stepIndex >= 0 && stepIndex < worksheetSteps.length) {
-      studentProgress[stepIndex] = {
-        completed: true,
-        answer: progressItem.answer,
-        feedback: progressItem.feedback,
-        score: progressItem.score,
-      };
-
-      // Restaurează răspunsul în interfață
-      restoreStepAnswer(stepIndex, progressItem.answer);
-
-      // Afișează feedback-ul salvat
-      if (progressItem.feedback) {
-        showStepFeedback(stepIndex, progressItem.feedback, progressItem.score);
-      }
-    }
-  });
-}
-
-// Restaurează răspunsul unui pas în interfață
-function restoreStepAnswer(stepIndex, answer) {
-  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
-  const stepData = worksheetSteps[stepIndex];
-
-  if (stepData.type === 'grila' && typeof answer === 'number') {
-    const radio = stepElement.querySelector(`input[value="${answer}"]`);
-    if (radio) {
-      radio.checked = true;
-    }
-  } else if (stepData.type === 'short' && typeof answer === 'string') {
-    const textarea = stepElement.querySelector('.short-answer');
-    if (textarea) {
-      textarea.value = answer;
-      const wordCountDiv = stepElement.querySelector('.word-count');
-      updateWordCount(textarea, wordCountDiv);
-    }
-  }
-
-  // Actualizează starea butonului
-  updateSubmitButtonState(stepIndex);
-}
-
-// Navighează la primul pas disponibil
-function navigateToFirstAvailableStep() {
-  // Găsește primul pas necompletat
-  currentStepIndex = 0;
-  for (let i = 0; i < worksheetSteps.length; i++) {
-    if (!studentProgress[i] || !studentProgress[i].completed) {
-      currentStepIndex = i;
-      break;
-    }
-  }
-
-  // Dacă toate sunt completate, rămâne la ultimul
-  if (currentStepIndex >= worksheetSteps.length) {
-    currentStepIndex = worksheetSteps.length - 1;
-  }
-
-  // Afișează pasul curent
-  showCurrentStep();
-  updateNavigation();
-}
+// ȘTERS: navigateToFirstAvailableStep
+// - mutat în common.js
 
 // Funcția pentru trimiterea pasului curent - apelată din HTML
 function submitCurrentStepWorksheet() {
@@ -286,7 +170,7 @@ function extractStepAnswer(stepIndex) {
   return null;
 }
 
-// Finalizează worksheet-ul cu raport AI
+// MODIFICAT: Finalizează worksheet-ul cu raport AI și marchează încercarea ca finalizată
 async function finalizeWorksheet() {
   // Verifică că toate pașii sunt completați
   const allCompleted = Object.values(studentProgress).every((p) => p && p.completed);
@@ -310,13 +194,22 @@ async function finalizeWorksheet() {
       throw new Error(finalReport?.error || 'Raportul AI nu a putut fi generat');
     }
 
-    // Afișează completarea cu raportul AI
+    // NOUĂ FUNCȚIE: Marchează încercarea ca finalizată în baza de date
+    await markAttemptAsCompleted();
+
+    // Afișează completarea cu raportul AI și butoanele noi
     displayCompletionWithAIReport(totalScore, maxScore, finalReport.finalReport);
     showMessage('Activitatea finalizată cu raport AI complet!', 'success');
   } catch (error) {
     console.error('Eroare finalizare AI:', error);
 
-    // Fallback fără AI
+    // Fallback fără AI - dar încă marchează ca finalizat
+    try {
+      await markAttemptAsCompleted();
+    } catch (markError) {
+      console.error('Eroare marcare finalizare:', markError);
+    }
+
     const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
     const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
 
@@ -328,6 +221,38 @@ async function finalizeWorksheet() {
     showMessage('Activitate finalizată fără raport AI detaliat', 'warning');
   } finally {
     setFinalizationUIState(false);
+  }
+}
+
+// NOUĂ FUNCȚIE: Marchează încercarea curentă ca fiind completă
+async function markAttemptAsCompleted() {
+  try {
+    const response = await fetch('/.netlify/functions/mark-attempt-completed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: authenticationData.student.id,
+        worksheetId: authenticationData.worksheet.id,
+        attemptNumber: authenticationData.session.current_attempt,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Eroare la marcarea finalizării');
+    }
+
+    console.log('Încercarea marcată ca finalizată cu succes');
+
+    // Actualizează statusul local
+    authenticationData.session.last_attempt_completed = true;
+  } catch (error) {
+    console.error('Eroare marcare attempt ca finalizat:', error);
+    throw error;
   }
 }
 
@@ -385,7 +310,7 @@ function setFinalizationUIState(isLoading) {
   }
 }
 
-// Afișează completarea cu raportul AI
+// MODIFICAT: Afișează completarea cu raportul AI și butoanele noi
 function displayCompletionWithAIReport(totalScore, maxScore, aiReport) {
   // Tranzitia UI
   document.getElementById('worksheet-section').classList.add('hidden');
@@ -416,9 +341,109 @@ function displayCompletionWithAIReport(totalScore, maxScore, aiReport) {
       <div class="ai-report-content">${aiReport}</div>
     </div>
   `;
+
+  // NOUĂ FUNCȚIE: Adaugă butoanele de acțiune
+  addCompletionActionButtons();
 }
 
-// Review mode - afișează toate pașii simultan
+// NOUĂ FUNCȚIE: Adaugă butoanele pentru "Refă exercițiul" și "Acasă"
+function addCompletionActionButtons() {
+  // Găsește sau creează containerul pentru butoane
+  let actionsContainer = document.getElementById('completion-actions');
+  if (!actionsContainer) {
+    actionsContainer = document.createElement('div');
+    actionsContainer.id = 'completion-actions';
+    actionsContainer.className = 'completion-actions';
+    document.getElementById('completion-section').appendChild(actionsContainer);
+  }
+
+  // Șterge butoanele existente
+  actionsContainer.innerHTML = '';
+
+  // Verifică dacă poate începe o încercare nouă
+  const canStartNew =
+    authenticationData.session.current_attempt < authenticationData.worksheet.max_attempts;
+
+  if (canStartNew) {
+    // Butonul "Refă exercițiul"
+    const retryButton = document.createElement('button');
+    retryButton.className = 'action-btn retry-btn';
+    retryButton.textContent = 'Refă exercițiul';
+    retryButton.onclick = handleRetryExercise;
+    actionsContainer.appendChild(retryButton);
+  }
+
+  // Butonul "Acasă" (întotdeauna prezent)
+  const homeButton = document.createElement('button');
+  homeButton.className = 'action-btn home-btn';
+  homeButton.textContent = 'Înapoi la pagina principală';
+  homeButton.onclick = handleGoHome;
+  actionsContainer.appendChild(homeButton);
+
+  // Butonul "Vezi toate răspunsurile"
+  const reviewButton = document.createElement('button');
+  reviewButton.className = 'action-btn review-btn secondary';
+  reviewButton.textContent = 'Vezi toate răspunsurile';
+  reviewButton.onclick = displayWorksheetReview;
+  actionsContainer.appendChild(reviewButton);
+
+  // Mesaj informativ
+  if (!canStartNew) {
+    const infoMessage = document.createElement('div');
+    infoMessage.className = 'completion-info';
+    infoMessage.innerHTML = `
+      <p><strong>Ai folosit toate încercările disponibile (${authenticationData.worksheet.max_attempts}/${authenticationData.worksheet.max_attempts})</strong></p>
+      <p>Poți vedea răspunsurile tale sau să te întorci la pagina principală pentru alte activități.</p>
+    `;
+    actionsContainer.insertBefore(infoMessage, actionsContainer.firstChild);
+  }
+}
+
+// NOUĂ FUNCȚIE: Gestionează reluarea exercițiului
+async function handleRetryExercise() {
+  // Confirmă acțiunea
+  if (!confirm('Sigur vrei să refaci exercițiul? Vei începe de la zero.')) {
+    return;
+  }
+
+  // Afișează loading
+  const retryBtn = document.querySelector('.retry-btn');
+  const originalText = retryBtn.textContent;
+  retryBtn.disabled = true;
+  retryBtn.textContent = 'Se pregătește exercițiul...';
+
+  try {
+    // Apelează funcția din common.js pentru reset complet
+    await startNewAttempt();
+
+    // Tranzitia înapoi la worksheet
+    document.getElementById('completion-section').classList.add('hidden');
+    document.getElementById('worksheet-section').classList.remove('hidden');
+
+    showMessage('Exercițiu resetat cu succes! Poți începe din nou.', 'success');
+  } catch (error) {
+    console.error('Eroare la reluarea exercițiului:', error);
+    showMessage('Eroare la reluarea exercițiului. Încearcă din nou.', 'error');
+
+    // Restaurează butonul
+    retryBtn.disabled = false;
+    retryBtn.textContent = originalText;
+  }
+}
+
+// NOUĂ FUNCȚIE: Gestionează întoarcerea acasă
+function handleGoHome() {
+  // Pentru moment, redirecționează către index.html
+  // În viitor, această funcție poate fi extinsă pentru a salva progresul global
+
+  if (
+    confirm('Sigur vrei să părăsești această activitate și să te întorci la pagina principală?')
+  ) {
+    window.location.href = '/index.html';
+  }
+}
+
+// MODIFICAT: Review mode - afișează toate pașii simultan
 function displayWorksheetReview() {
   // Tranzitia UI
   document.getElementById('completion-section').classList.add('hidden');

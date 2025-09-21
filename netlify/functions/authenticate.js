@@ -95,10 +95,10 @@ exports.handler = async (event) => {
       };
     }
 
-    // 4. Verifică dacă elevul are încercări disponibile
+    // 4. Verifică încercările existente și determină statusul curent
     const { data: attempts, error: attemptsError } = await supabase
       .from('worksheet_attempts')
-      .select('attempt_number')
+      .select('attempt_number, is_completed')
       .eq('student_id', student.id)
       .eq('worksheet_id', worksheet.id)
       .order('attempt_number', { ascending: false });
@@ -110,23 +110,36 @@ exports.handler = async (event) => {
     const currentAttemptNumber = attempts.length > 0 ? attempts[0].attempt_number : 0;
     const hasAttemptsLeft = currentAttemptNumber < worksheet.max_attempts;
 
-    // 5. Încarcă progresul curent dacă există
-    let currentProgress = null;
-    if (attempts.length > 0) {
-      const { data: progress, error: progressError } = await supabase
-        .from('student_progress')
-        .select('step_number, answer, feedback, score, completed_at')
-        .eq('student_id', student.id)
-        .eq('worksheet_id', worksheet.id)
-        .eq('attempt_number', currentAttemptNumber)
-        .order('step_number');
+    // Determină dacă ultima încercare a fost completată
+    const lastAttemptCompleted = attempts.length > 0 ? attempts[0].is_completed : false;
 
-      if (!progressError && progress) {
-        currentProgress = progress;
+    // 5. Logica pentru încărcarea progresului
+    let currentProgress = null;
+    let shouldRestoreProgress = false;
+
+    if (attempts.length > 0) {
+      // Dacă ultima încercare NU a fost completată, încarcă progresul pentru continuare
+      if (!lastAttemptCompleted) {
+        const { data: progress, error: progressError } = await supabase
+          .from('student_progress')
+          .select('step_number, answer, feedback, score, completed_at')
+          .eq('student_id', student.id)
+          .eq('worksheet_id', worksheet.id)
+          .eq('attempt_number', currentAttemptNumber)
+          .order('step_number');
+
+        if (!progressError && progress) {
+          currentProgress = progress;
+          shouldRestoreProgress = true; // Încarcă progresul în interfață
+        }
       }
+      // Dacă ultima încercare A fost completată, nu încărca progresul (exercițiu curat)
     }
 
-    // 6. Succes - returnează toate datele necesare
+    // 6. Determină dacă poate începe o încercare nouă
+    const canStartNewAttempt = lastAttemptCompleted && hasAttemptsLeft;
+
+    // 7. Succes - returnează toate datele necesare
     return {
       statusCode: 200,
       headers: {
@@ -157,6 +170,9 @@ exports.handler = async (event) => {
           has_attempts_left: hasAttemptsLeft,
           can_submit: worksheet.is_active && hasAttemptsLeft,
           progress: currentProgress,
+          should_restore_progress: shouldRestoreProgress, // Flag pentru frontend
+          last_attempt_completed: lastAttemptCompleted,
+          can_start_new_attempt: canStartNewAttempt,
         },
       }),
     };

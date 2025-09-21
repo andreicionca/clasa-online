@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fișă de lucru online</title>
+    <title>Fișă de lucru nouă</title>
     <link rel="stylesheet" href="css/worksheet.css" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   </head>
@@ -94,16 +94,27 @@
         <div id="worksheet-messages" class="messages"></div>
       </div>
 
-      <!-- Secțiunea de finalizare -->
+      <!-- MODIFICAT: Secțiunea de finalizare cu structura nouă -->
       <div id="completion-section" class="section hidden">
         <div class="completion-content">
-          <h2>Activitate finalizată!</h2>
-          <div id="final-score" class="final-score"></div>
-          <div id="final-feedback" class="final-feedback"></div>
+          <div class="completion-header">
+            <h2>🎉 Activitate finalizată!</h2>
+            <p>Felicitări! Ai completat cu succes toți pașii activității.</p>
+          </div>
 
-          <div class="completion-actions">
-            <button onclick="reviewAllSteps()" class="review-btn">Revizuiește răspunsurile</button>
-            <button onclick="goToHomePage()" class="home-btn">Înapoi la pagina principală</button>
+          <!-- Scorul final -->
+          <div id="final-score" class="final-score">
+            <!-- Populat dinamic de displayCompletionWithAIReport() -->
+          </div>
+
+          <!-- Feedback-ul AI final -->
+          <div id="final-feedback" class="final-feedback">
+            <!-- Populat dinamic cu raportul AI -->
+          </div>
+
+          <!-- NOUĂ: Container pentru butoanele de acțiune -->
+          <div id="completion-actions" class="completion-actions">
+            <!-- Butoanele se adaugă dinamic de addCompletionActionButtons() -->
           </div>
         </div>
       </div>
@@ -221,14 +232,20 @@
         finishCurrentWorksheet();
       }
 
+      // MODIFICAT: Funcții pentru completarea activității
       function reviewAllSteps() {
         // Funcție pentru review
         showWorksheetReview();
       }
 
       function goToHomePage() {
-        // Navigare către index.html
-        window.location.href = '/index.html';
+        // MODIFICAT: Folosește funcția din worksheet.js pentru confirmarea acțiunii
+        if (typeof handleGoHome === 'function') {
+          handleGoHome();
+        } else {
+          // Fallback direct
+          window.location.href = '/index.html';
+        }
       }
 
       // Callback pentru după autentificare - va fi apelat din common.js
@@ -236,7 +253,7 @@
         authenticationData = authData;
 
         // Determină ce worksheet.js să încărce pe baza datelor
-        const worksheetPath = `worksheets/${authData.worksheet.subject}/${authData.worksheet.grade}/securitate/worksheet.js`;
+        const worksheetPath = `worksheets/${authData.worksheet.subject}/${authData.worksheet.grade}/${authData.worksheet.topic}/worksheet.js`;
 
         // Încarcă scriptul specific
         loadWorksheetScript(worksheetPath);

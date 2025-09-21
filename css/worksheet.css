@@ -621,3 +621,342 @@ body {
     padding: 32px;
   }
 }
+
+/* ADAUGĂ ACESTE STILURI LA SFÂRȘITUL FIȘIERULUI worksheet.css */
+
+/* === COMPLETION SECTION ÎMBUNĂTĂȚITĂ === */
+.completion-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.completion-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #059669;
+  margin-bottom: 8px;
+}
+
+.completion-header p {
+  color: #6b7280;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Scor final cu styling dinamic */
+.final-score .score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.final-score .score-value {
+  font-size: 36px;
+  font-weight: 800;
+}
+
+.final-score .score-percent {
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* Clase pentru performanță */
+.final-score.excellent .score-value {
+  color: #059669;
+}
+
+.final-score.good .score-value {
+  color: #2563eb;
+}
+
+.final-score.needs-improvement .score-value {
+  color: #dc2626;
+}
+
+/* AI Report styling */
+.ai-final-report {
+  background: #f0f9ff;
+  border: 2px solid #bae6fd;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.ai-final-report h4 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.ai-report-content {
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* === BUTOANE DE ACȚIUNE PENTRU COMPLETION === */
+.completion-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.action-btn {
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.action-btn.retry-btn {
+  background: #059669;
+  color: white;
+  border: 2px solid #059669;
+}
+
+.action-btn.retry-btn:hover {
+  background: #047857;
+  border-color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.action-btn.home-btn {
+  background: #f8fafc;
+  color: #475569;
+  border: 2px solid #e2e8f0;
+}
+
+.action-btn.home-btn:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.action-btn.review-btn {
+  background: #6366f1;
+  color: white;
+  border: 2px solid #6366f1;
+}
+
+.action-btn.review-btn:hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.action-btn.secondary {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 14px;
+  padding: 10px 16px;
+}
+
+.action-btn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Info message pentru completion */
+.completion-info {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.completion-info p {
+  margin: 0;
+  font-size: 14px;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.completion-info strong {
+  font-weight: 600;
+}
+
+/* === REVIEW MODE === */
+.step.review-mode {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.step.review-mode .step-header {
+  opacity: 0.8;
+}
+
+.step.review-mode input,
+.step.review-mode textarea,
+.step.review-mode button {
+  opacity: 0.7;
+}
+
+.step.review-mode .feedback {
+  border-top-color: #d1d5db;
+}
+
+/* === LOADING STATES === */
+.submit-step-btn.loading {
+  background: #6b7280;
+  cursor: wait;
+  position: relative;
+}
+
+.submit-step-btn.loading::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.submit-step-btn.error {
+  background: #dc2626;
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes spin {
+  0% {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  100% {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* === FEEDBACK ÎMBUNĂTĂȚIT === */
+.feedback.feedback-appear {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feedback-score.score-excellent {
+  color: #059669;
+  background: #dcfce7;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.feedback-score.score-good {
+  color: #2563eb;
+  background: #dbeafe;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.feedback-score.score-needs-improvement {
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* === WORD COUNT STYLING === */
+.word-count.empty {
+  color: #9ca3af;
+}
+
+.word-count.few {
+  color: #f59e0b;
+}
+
+.word-count.moderate {
+  color: #059669;
+  font-weight: 500;
+}
+
+.word-count.many {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* === RESPONSIVE PENTRU NOILE ELEMENTE === */
+@media (min-width: 768px) {
+  .completion-header h2 {
+    font-size: 32px;
+  }
+
+  .final-score .score-value {
+    font-size: 42px;
+  }
+
+  .final-score .score-percent {
+    font-size: 20px;
+  }
+
+  .completion-actions {
+    flex-direction: row;
+    max-width: 500px;
+    gap: 16px;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 16px 24px;
+    font-size: 16px;
+  }
+
+  .ai-final-report {
+    padding: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .completion-content {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+}

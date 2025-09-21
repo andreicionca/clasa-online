@@ -224,6 +224,181 @@ function showMaxAttemptsReached(authData) {
   populateWorksheetHeader(authData);
 }
 
+// NOUA FUNCȚIE: Inițializează tracking-ul progresului cu logica condițională
+function initializeProgressTracking(authData, shouldRestoreInUI = null) {
+  // Folosește flag-ul din authenticate.js dacă nu e specificat manual
+  const shouldRestore =
+    shouldRestoreInUI !== null ? shouldRestoreInUI : authData.session.should_restore_progress;
+
+  // Resetează progresul local
+  studentProgress = {};
+
+  // Inițializează fiecare pas
+  worksheetSteps.forEach((_, index) => {
+    studentProgress[index] = {
+      completed: false,
+      answer: null,
+      feedback: null,
+      score: 0,
+    };
+  });
+
+  // Încarcă progresul existent DOAR dacă este cazul
+  if (shouldRestore && authData.session.progress && authData.session.progress.length > 0) {
+    restoreExistingProgress(authData.session.progress);
+    console.log('Progres restaurat pentru continuarea exercițiului');
+  } else {
+    console.log('Exercițiu curat - nu se încarcă progresul anterior');
+  }
+}
+
+// Restaurează progresul din baza de date (rămâne neschimbată)
+function restoreExistingProgress(progressData) {
+  progressData.forEach((progressItem) => {
+    const stepIndex = progressItem.step_number - 1; // Convertire 0-based
+
+    if (stepIndex >= 0 && stepIndex < worksheetSteps.length) {
+      studentProgress[stepIndex] = {
+        completed: true,
+        answer: progressItem.answer,
+        feedback: progressItem.feedback,
+        score: progressItem.score,
+      };
+
+      // Restaurează răspunsul în interfață
+      restoreStepAnswer(stepIndex, progressItem.answer);
+
+      // Afișează feedback-ul salvat
+      if (progressItem.feedback) {
+        showStepFeedback(stepIndex, progressItem.feedback, progressItem.score);
+      }
+    }
+  });
+}
+
+// NOUA FUNCȚIE: Începe o încercare nouă (resetează totul)
+async function startNewAttempt() {
+  if (!authenticationData) {
+    showMessage('Date de autentificare lipsă', 'error');
+    return;
+  }
+
+  try {
+    // Creează o nouă încercare în baza de date prin incrementarea attempt-ului
+    const newAttemptNumber = authenticationData.session.current_attempt + 1;
+
+    // Actualizează datele locale
+    authenticationData.session.current_attempt = newAttemptNumber;
+    authenticationData.session.progress = null; // Șterge progresul anterior
+
+    // Resetează complet interfața
+    resetWorksheetInterface();
+
+    // Reinițializează progresul fără restaurare
+    initializeProgressTracking(authenticationData, false);
+
+    // Navighează la primul pas
+    navigateToFirstAvailableStep();
+
+    // Actualizează header-ul cu noul număr de încercare
+    populateWorksheetHeader(authenticationData);
+
+    // Afișează mesajul de succes
+    showMessage(
+      `Încercare nouă începută (${newAttemptNumber}/${authenticationData.worksheet.max_attempts})`,
+      'success'
+    );
+
+    console.log('Încercare nouă începută:', newAttemptNumber);
+  } catch (error) {
+    console.error('Eroare la începerea încercării noi:', error);
+    showMessage('Eroare la începerea încercării noi. Încearcă din nou.', 'error');
+  }
+}
+
+// NOUA FUNCȚIE: Resetează complet interfața worksheet-ului
+function resetWorksheetInterface() {
+  // Șterge toate mesajele
+  clearMessages();
+
+  // Resetează toate pașii la starea inițială
+  document.querySelectorAll('.step').forEach((stepElement) => {
+    // Reactivează toate controalele
+    const inputs = stepElement.querySelectorAll('input, textarea');
+    inputs.forEach((input) => {
+      input.disabled = false;
+      if (input.type === 'radio') {
+        input.checked = false;
+      } else if (input.tagName === 'TEXTAREA') {
+        input.value = '';
+      }
+    });
+
+    // Resetează butoanele de submit
+    const submitBtn = stepElement.querySelector('.submit-step-btn');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Trimite răspunsul';
+      submitBtn.classList.remove('completed', 'loading', 'error');
+    }
+
+    // Ascunde feedback-ul
+    const feedbackContainer = stepElement.querySelector('.feedback');
+    if (feedbackContainer) {
+      feedbackContainer.classList.add('hidden');
+    }
+
+    // Resetează word count pentru textarea-uri
+    const wordCountDiv = stepElement.querySelector('.word-count');
+    if (wordCountDiv) {
+      wordCountDiv.textContent = '0 cuvinte';
+      wordCountDiv.className = 'word-count empty';
+    }
+
+    // Șterge clasa de pas completat
+    stepElement.classList.remove('step-completed');
+  });
+
+  // Resetează navigarea
+  currentStepIndex = 0;
+
+  console.log('Interfață worksheet resetată complet');
+}
+
+// FUNCȚIE AJUSTATĂ: Navighează la primul pas disponibil (pentru exercițiu curat)
+function navigateToFirstAvailableStep() {
+  // Pentru exercițiu curat, începe mereu de la primul pas
+  currentStepIndex = 0;
+
+  // Afișează primul pas
+  showCurrentStep();
+  updateNavigation();
+}
+
+// Restaurează răspunsul unui pas în interfață (rămâne neschimbată)
+function restoreStepAnswer(stepIndex, answer) {
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const stepData = worksheetSteps[stepIndex];
+
+  if (stepData.type === 'grila' && typeof answer === 'number') {
+    const radio = stepElement.querySelector(`input[value="${answer}"]`);
+    if (radio) {
+      radio.checked = true;
+    }
+  } else if (stepData.type === 'short' && typeof answer === 'string') {
+    const textarea = stepElement.querySelector('.short-answer');
+    if (textarea) {
+      textarea.value = answer;
+      const wordCountDiv = stepElement.querySelector('.word-count');
+      updateWordCount(textarea, wordCountDiv);
+    }
+  }
+
+  // Actualizează starea butonului și marchează ca completat
+  updateSubmitButtonState(stepIndex);
+  setStepCompletedState(stepElement);
+}
+
 // Funcție principală pentru trimiterea unui pas către server cu retry logic
 async function submitStepToServer(stepIndex, answer) {
   if (!authenticationData) {
@@ -480,6 +655,42 @@ function getStepAnswer(stepIndex) {
   }
 
   return null;
+}
+
+// NOUA FUNCȚIE: Pentru validarea la submit (folosită din worksheet.js)
+function updateSubmitButtonState(stepIndex) {
+  const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
+  const submitBtn = stepElement.querySelector('.submit-step-btn');
+
+  if (!submitBtn) return;
+
+  const hasValidAnswer = checkStepHasValidAnswer(stepIndex);
+  const isCompleted = studentProgress[stepIndex] && studentProgress[stepIndex].completed;
+
+  // Nu permite submit dacă e deja completat
+  if (isCompleted) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Completat';
+    submitBtn.classList.add('completed');
+    return;
+  }
+
+  // Activează/dezactivează pe baza validității răspunsului
+  submitBtn.disabled = !hasValidAnswer;
+  submitBtn.classList.toggle('enabled', hasValidAnswer);
+}
+
+// NOUA FUNCȚIE: Verifică dacă pasul are răspuns valid
+function checkStepHasValidAnswer(stepIndex) {
+  const stepData = worksheetSteps[stepIndex];
+
+  if (stepData.type === 'grila') {
+    return isValidGrilaAnswer(stepIndex);
+  } else if (stepData.type === 'short') {
+    return isValidShortAnswer(stepIndex);
+  }
+
+  return false;
 }
 
 // Funcție pentru actualizarea contorului de cuvinte (doar numără, fără limite)
