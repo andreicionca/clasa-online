@@ -1,4 +1,4 @@
-// netlify/functions/worksheet-submit-step.js
+// netlify/functions/submit-step.js
 // Funcția pentru trimiterea răspunsurilor pas cu pas cu AI obligatoriu
 
 const { createClient } = require('@supabase/supabase-js');
@@ -113,6 +113,9 @@ exports.handler = async (event) => {
         }),
       };
     }
+
+    // NOU: Extrage configurația exercițiului
+    const exerciseConfig = worksheet.structure.exercise_config || { has_scoring: true };
 
     // 3. Verifică dacă worksheet-ul este activ
     if (!worksheet.is_active) {
@@ -240,6 +243,7 @@ exports.handler = async (event) => {
       student: student.name,
       stepType: stepData.type,
       stepNumber,
+      hasScoring: exerciseConfig.has_scoring,
     });
 
     let aiResponse;
@@ -252,7 +256,8 @@ exports.handler = async (event) => {
         processedAnswer,
         student,
         stepIndex,
-        isCorrect
+        isCorrect,
+        exerciseConfig
       );
     } catch (aiError) {
       console.error('Eroare critică în apelul AI:', aiError);
@@ -290,8 +295,9 @@ exports.handler = async (event) => {
 
     const { feedback, score } = aiResponse;
 
-    if (!feedback || score === undefined || score === null) {
-      console.error('Feedback sau scor invalid de la AI:', { feedback: !!feedback, score });
+    // MODIFICAT: Validarea feedback-ului și scorului bazată pe configurația exercițiului
+    if (!feedback) {
+      console.error('Feedback lipsă de la AI');
       return {
         statusCode: 500,
         headers: {
@@ -305,6 +311,26 @@ exports.handler = async (event) => {
         }),
       };
     }
+
+    // Pentru exerciții cu scoring, scorul trebuie să existe
+    if (exerciseConfig.has_scoring && (score === undefined || score === null)) {
+      console.error('Scor lipsă pentru exercițiu cu scoring:', { feedback: !!feedback, score });
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({
+          success: false,
+          error: 'Scorul AI este incomplet. Te rugăm să încerci din nou.',
+          retryable: true,
+        }),
+      };
+    }
+
+    // Pentru exerciții fără scoring, setează scorul la 0
+    const finalScore = exerciseConfig.has_scoring ? score : 0;
 
     // 8. Doar după succesul AI, creează/actualizează încercarea în BD
     const { data: existingAttempt } = await supabase
@@ -347,7 +373,7 @@ exports.handler = async (event) => {
         .update({
           answer: processedAnswer,
           feedback: feedback,
-          score: score,
+          score: finalScore,
           completed_at: new Date().toISOString(),
         })
         .eq('id', existingProgress.id);
@@ -364,7 +390,7 @@ exports.handler = async (event) => {
         step_number: stepNumber,
         answer: processedAnswer,
         feedback: feedback,
-        score: score,
+        score: finalScore,
         attempt_number: currentAttempt,
       });
 
@@ -374,32 +400,41 @@ exports.handler = async (event) => {
       }
     }
 
-    // 10. Actualizează scorul total al încercării
-    await updateAttemptTotalScore(studentId, worksheetId, currentAttempt);
+    // 10. Actualizează scorul total al încercării doar pentru exerciții cu scoring
+    if (exerciseConfig.has_scoring) {
+      await updateAttemptTotalScore(studentId, worksheetId, currentAttempt);
+    }
 
     console.log('Progres salvat cu succes:', {
       student: student.name,
       stepNumber,
-      score,
+      score: finalScore,
+      hasScoring: exerciseConfig.has_scoring,
       feedbackLength: feedback.length,
     });
 
-    // 11. Returnează succesul cu feedback-ul AI
+    // MODIFICAT: Răspunsul adaptat pentru exerciții cu/fără scoring
+    const responseData = {
+      success: true,
+      feedback: feedback,
+      stepCompleted: true,
+      message: 'Răspuns evaluat și salvat cu succes!',
+    };
+
+    // Adaugă datele de scoring doar dacă exercițiul le folosește
+    if (exerciseConfig.has_scoring) {
+      responseData.score = finalScore;
+      responseData.maxPoints = stepData.points || 0;
+      responseData.isCorrect = isCorrect;
+    }
+
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({
-        success: true,
-        feedback: feedback,
-        score: score,
-        isCorrect: isCorrect,
-        stepCompleted: true,
-        maxPoints: stepData.points,
-        message: 'Răspuns evaluat și salvat cu succes!',
-      }),
+      body: JSON.stringify(responseData),
     };
   } catch (error) {
     console.error('Eroare critică în submit-step:', error);
@@ -418,8 +453,7 @@ exports.handler = async (event) => {
   }
 };
 
-// Funcție pentru apelarea AI-ului specializat pe worksheet
-
+// MODIFICAT: Funcție pentru apelarea AI-ului cu configurația exercițiului
 async function callWorksheetSpecificAI(
   subject,
   grade,
@@ -428,25 +462,27 @@ async function callWorksheetSpecificAI(
   answer,
   student,
   stepIndex,
-  isCorrect
+  isCorrect,
+  exerciseConfig
 ) {
   try {
     // Construiește numele funcției AI specializate
     const functionName = `worksheet-submit-${subject}-${grade}-${topic}`;
 
-    // Pregătește payload-ul pentru funcția AI
+    // MODIFICAT: Pregătește payload-ul cu configurația exercițiului
     const payload = {
       stepData,
       answer,
       student,
       stepIndex,
       isCorrect,
+      exerciseConfig,
       requestType: 'ai_feedback',
     };
 
     console.log(`Apel către funcția AI: ${functionName}`);
 
-    // FIX: Folosește URL-ul corect pentru Netlify
+    // Folosește URL-ul corect pentru Netlify
     const baseURL = process.env.URL || process.env.NETLIFY_URL || 'https://clasaonline.netlify.app';
 
     // Apelează funcția AI specializată
@@ -478,7 +514,7 @@ async function callWorksheetSpecificAI(
   }
 }
 
-// Funcție pentru actualizarea scorului total al încercării
+// MODIFICAT: Funcție pentru actualizarea scorului total (doar pentru exerciții cu scoring)
 async function updateAttemptTotalScore(studentId, worksheetId, attemptNumber) {
   try {
     // Calculează scorul total pentru această încercare

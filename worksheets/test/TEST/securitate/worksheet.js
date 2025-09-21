@@ -22,7 +22,7 @@ function initializeSpecificWorksheet(authData) {
   // Construiește interfața dinamică
   buildWorksheetInterface();
 
-  // MODIFICAT: Folosește funcția din common.js cu logica condițională
+  // Folosește funcția din common.js cu logica condițională
   initializeProgressTracking(authData);
 
   // Afișează primul pas disponibil
@@ -128,15 +128,6 @@ function setupShortStep(stepElement, stepData, stepIndex) {
   });
 }
 
-// ȘTERS: updateSubmitButtonState și checkStepHasValidAnswer
-// - mutate în common.js pentru reutilizabilitate
-
-// ȘTERS: initializeProgressTracking, restoreExistingProgress, restoreStepAnswer
-// - mutate în common.js cu logica condițională
-
-// ȘTERS: navigateToFirstAvailableStep
-// - mutat în common.js
-
 // Funcția pentru trimiterea pasului curent - apelată din HTML
 function submitCurrentStepWorksheet() {
   if (!checkStepHasValidAnswer(currentStepIndex)) {
@@ -170,7 +161,7 @@ function extractStepAnswer(stepIndex) {
   return null;
 }
 
-// MODIFICAT: Finalizează worksheet-ul cu raport AI și marchează încercarea ca finalizată
+// REFACTORIZAT: Finalizează worksheet-ul adaptat pentru configurația flexibilă
 async function finalizeWorksheet() {
   // Verifică că toate pașii sunt completați
   const allCompleted = Object.values(studentProgress).every((p) => p && p.completed);
@@ -183,22 +174,33 @@ async function finalizeWorksheet() {
   setFinalizationUIState(true);
 
   try {
-    // Calculează statistici
-    const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
-    const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
+    // REFACTORIZAT: Calculează statistici bazate pe configurația exercițiului
+    const exerciseConfig = authenticationData.worksheet.structure.exercise_config || {
+      has_scoring: true,
+    };
+
+    let totalScore = 0;
+    let maxScore = 0;
+
+    if (exerciseConfig.has_scoring) {
+      totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
+      maxScore =
+        exerciseConfig.total_points ||
+        worksheetSteps.reduce((sum, step) => sum + (step.points || 0), 0);
+    }
 
     // Generează raportul AI final
-    const finalReport = await requestFinalAIReport(totalScore, maxScore);
+    const finalReport = await requestFinalAIReport(totalScore, maxScore, exerciseConfig);
 
     if (!finalReport || !finalReport.success) {
       throw new Error(finalReport?.error || 'Raportul AI nu a putut fi generat');
     }
 
-    // NOUĂ FUNCȚIE: Marchează încercarea ca finalizată în baza de date
+    // Marchează încercarea ca finalizată în baza de date
     await markAttemptAsCompleted();
 
     // Afișează completarea cu raportul AI și butoanele noi
-    displayCompletionWithAIReport(totalScore, maxScore, finalReport.finalReport);
+    displayCompletionWithAIReport(totalScore, maxScore, finalReport.finalReport, exerciseConfig);
     showMessage('Activitatea finalizată cu raport AI complet!', 'success');
   } catch (error) {
     console.error('Eroare finalizare AI:', error);
@@ -210,13 +212,22 @@ async function finalizeWorksheet() {
       console.error('Eroare marcare finalizare:', markError);
     }
 
-    const totalScore = Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0);
-    const maxScore = worksheetSteps.reduce((sum, step) => sum + step.points, 0);
+    const exerciseConfig = authenticationData.worksheet.structure.exercise_config || {
+      has_scoring: true,
+    };
+    const totalScore = exerciseConfig.has_scoring
+      ? Object.values(studentProgress).reduce((sum, p) => sum + (p.score || 0), 0)
+      : 0;
+    const maxScore = exerciseConfig.has_scoring
+      ? exerciseConfig.total_points ||
+        worksheetSteps.reduce((sum, step) => sum + (step.points || 0), 0)
+      : 0;
 
     displayCompletionWithAIReport(
       totalScore,
       maxScore,
-      'Activitatea a fost finalizată cu succes. Raportul AI detaliat nu este disponibil momentan, dar toate răspunsurile au fost evaluate individual.'
+      'Activitatea a fost finalizată cu succes. Raportul AI detaliat nu este disponibil momentan, dar toate răspunsurile au fost evaluate individual.',
+      exerciseConfig
     );
     showMessage('Activitate finalizată fără raport AI detaliat', 'warning');
   } finally {
@@ -224,7 +235,7 @@ async function finalizeWorksheet() {
   }
 }
 
-// NOUĂ FUNCȚIE: Marchează încercarea curentă ca fiind completă
+// Marchează încercarea curentă ca fiind completă
 async function markAttemptAsCompleted() {
   try {
     const response = await fetch('/.netlify/functions/mark-attempt-completed', {
@@ -256,8 +267,8 @@ async function markAttemptAsCompleted() {
   }
 }
 
-// Cere raportul AI final prin funcția centralizată
-async function requestFinalAIReport(totalScore, maxScore) {
+// REFACTORIZAT: Cere raportul AI final cu configurația exercițiului
+async function requestFinalAIReport(totalScore, maxScore, exerciseConfig) {
   const performanceData = {
     totalScore: totalScore,
     maxScore: maxScore,
@@ -282,6 +293,7 @@ async function requestFinalAIReport(totalScore, maxScore) {
         student: studentData,
         performanceData: performanceData,
         allStepsData: worksheetSteps,
+        exerciseConfig: exerciseConfig, // NOU: trimite configurația
       }),
     });
 
@@ -310,28 +322,40 @@ function setFinalizationUIState(isLoading) {
   }
 }
 
-// MODIFICAT: Afișează completarea cu raportul AI și butoanele noi
-function displayCompletionWithAIReport(totalScore, maxScore, aiReport) {
+// REFACTORIZAT: Afișează completarea adaptată pentru configurația exercițiului
+function displayCompletionWithAIReport(totalScore, maxScore, aiReport, exerciseConfig) {
   // Tranzitia UI
   document.getElementById('worksheet-section').classList.add('hidden');
   document.getElementById('completion-section').classList.remove('hidden');
 
-  // Afișează scorul cu styling
   const scoreElement = document.getElementById('final-score');
-  const percentage = (totalScore / maxScore) * 100;
 
-  scoreElement.innerHTML = `
-    <div class="score-display">
-      <span class="score-value">${totalScore}/${maxScore} puncte</span>
-      <span class="score-percent">(${percentage.toFixed(1)}%)</span>
-    </div>
-  `;
+  if (exerciseConfig.has_scoring) {
+    // Pentru exerciții cu punctaje - afișează scorul
+    const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 
-  // Styling pe baza performanței
-  scoreElement.className = 'final-score';
-  if (percentage >= 80) scoreElement.classList.add('excellent');
-  else if (percentage >= 60) scoreElement.classList.add('good');
-  else scoreElement.classList.add('needs-improvement');
+    scoreElement.innerHTML = `
+      <div class="score-display">
+        <span class="score-value">${totalScore}/${maxScore} puncte</span>
+        <span class="score-percent">(${percentage.toFixed(1)}%)</span>
+      </div>
+    `;
+
+    // Styling pe baza performanței
+    scoreElement.className = 'final-score';
+    if (percentage >= 80) scoreElement.classList.add('excellent');
+    else if (percentage >= 60) scoreElement.classList.add('good');
+    else scoreElement.classList.add('needs-improvement');
+  } else {
+    // Pentru exerciții fără punctaje - afișează completarea
+    scoreElement.innerHTML = `
+      <div class="completion-display">
+        <span class="completion-value">Activitate completată cu succes!</span>
+        <span class="steps-completed">Toate cele ${worksheetSteps.length} etape finalizate</span>
+      </div>
+    `;
+    scoreElement.className = 'final-completion';
+  }
 
   // Afișează raportul AI
   const feedbackElement = document.getElementById('final-feedback');
@@ -342,11 +366,11 @@ function displayCompletionWithAIReport(totalScore, maxScore, aiReport) {
     </div>
   `;
 
-  // NOUĂ FUNCȚIE: Adaugă butoanele de acțiune
+  // Adaugă butoanele de acțiune
   addCompletionActionButtons();
 }
 
-// NOUĂ FUNCȚIE: Adaugă butoanele pentru "Refă exercițiul" și "Acasă"
+// Adaugă butoanele pentru "Refă exercițiul" și "Acasă"
 function addCompletionActionButtons() {
   // Găsește sau creează containerul pentru butoane
   let actionsContainer = document.getElementById('completion-actions');
@@ -399,7 +423,7 @@ function addCompletionActionButtons() {
   }
 }
 
-// NOUĂ FUNCȚIE: Gestionează reluarea exercițiului
+// Gestionează reluarea exercițiului
 async function handleRetryExercise() {
   // Confirmă acțiunea
   if (!confirm('Sigur vrei să refaci exercițiul? Vei începe de la zero.')) {
@@ -431,11 +455,8 @@ async function handleRetryExercise() {
   }
 }
 
-// NOUĂ FUNCȚIE: Gestionează întoarcerea acasă
+// Gestionează întoarcerea acasă
 function handleGoHome() {
-  // Pentru moment, redirecționează către index.html
-  // În viitor, această funcție poate fi extinsă pentru a salva progresul global
-
   if (
     confirm('Sigur vrei să părăsești această activitate și să te întorci la pagina principală?')
   ) {
@@ -443,7 +464,7 @@ function handleGoHome() {
   }
 }
 
-// MODIFICAT: Review mode - afișează toate pașii simultan
+// Review mode - afișează toate pașii simultan
 function displayWorksheetReview() {
   // Tranzitia UI
   document.getElementById('completion-section').classList.add('hidden');

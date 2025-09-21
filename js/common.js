@@ -1,6 +1,9 @@
 // js/common.js
 // Funcții comune refactorizate: autentificare, navigare, UI states, retry logic
 
+// Variabile globale pentru configurația exercițiului
+let exerciseConfig = null;
+
 // Funcția de inițializare a paginii
 function initializePage() {
   // Verifică dacă există cod salvat în localStorage
@@ -128,12 +131,13 @@ function showCurrentStep() {
   updateProgressDisplay();
 }
 
-// Actualizează afișajul progresului
+// REFACTORIZAT: Actualizează afișajul progresului bazat pe completion
 function updateProgressDisplay() {
-  // Actualizează numărul pasului curent
+  // Actualizează numărul pasului curent - mereu afișat ca "Pas X din Y"
   document.getElementById('current-step').textContent = currentStepIndex + 1;
+  document.getElementById('total-steps').textContent = worksheetSteps.length;
 
-  // Actualizează progress bar-ul
+  // Progress bar bazat pe pași completați, nu pe punctaje
   const completedSteps = Object.values(studentProgress).filter((p) => p && p.completed).length;
   const progressPercentage = (completedSteps / worksheetSteps.length) * 100;
   document.getElementById('progress-fill').style.width = `${progressPercentage}%`;
@@ -185,6 +189,9 @@ function populateWorksheetHeader(authData) {
 
 // MODIFICAT: Verifică statusul worksheet-ului și afișează secțiunea corespunzătoare
 function checkWorksheetStatus(authData) {
+  // Extrage configurația exercițiului din structura JSON
+  exerciseConfig = authData.worksheet.structure.exercise_config || { has_scoring: true };
+
   // NOUĂ VERIFICARE: Dacă trebuie să afișezi informațiile despre încercarea anterioară
   if (authData.session.show_previous_attempt_info) {
     showPreviousAttemptInfo(authData);
@@ -207,7 +214,7 @@ function checkWorksheetStatus(authData) {
   return true;
 }
 
-// NOUĂ FUNCȚIE: Afișează informațiile despre încercarea anterioară
+// REFACTORIZAT: Afișează informațiile despre încercarea anterioară
 function showPreviousAttemptInfo(authData) {
   const previousSection = document.getElementById('previous-attempt-section');
   if (!previousSection) {
@@ -218,8 +225,14 @@ function showPreviousAttemptInfo(authData) {
   // Populează informațiile de bază
   populatePreviousAttemptHeader(authData);
 
-  // Populează scorul anterior
-  populatePreviousScore(authData);
+  // Populează scorul anterior doar dacă exercițiul are scoring
+  if (exerciseConfig.has_scoring) {
+    populatePreviousScore(authData);
+  } else {
+    // Ascunde secțiunea de scor pentru exerciții fără punctaje
+    const scoreSection = document.querySelector('.previous-score-section');
+    if (scoreSection) scoreSection.style.display = 'none';
+  }
 
   // Populează raportul anterior
   populatePreviousReport(authData);
@@ -233,7 +246,7 @@ function showPreviousAttemptInfo(authData) {
   console.log('Secțiunea pentru încercarea anterioară afișată cu succes');
 }
 
-// NOUĂ FUNCȚIE: Populează header-ul pentru încercarea anterioară
+// Populează header-ul pentru încercarea anterioară
 function populatePreviousAttemptHeader(authData) {
   const studentName = `${authData.student.name} ${authData.student.surname}`;
   const worksheetTitle = `${
@@ -265,17 +278,18 @@ function populatePreviousAttemptHeader(authData) {
   }
 }
 
-// NOUĂ FUNCȚIE: Populează scorul anterior
+// REFACTORIZAT: Populează scorul anterior doar pentru exerciții cu scoring
 function populatePreviousScore(authData) {
   const previousScoreElement = document.getElementById('previous-score');
-  if (!previousScoreElement || !authData.previous_attempt) return;
+  if (!previousScoreElement || !authData.previous_attempt || !exerciseConfig.has_scoring) return;
 
-  const { total_score, max_score } = authData.previous_attempt;
-  const percentage = (total_score / max_score) * 100;
+  const { total_score } = authData.previous_attempt;
+  const maxScore = exerciseConfig.total_points;
+  const percentage = (total_score / maxScore) * 100;
 
   previousScoreElement.innerHTML = `
     <div class="previous-score-display">
-      <span class="score-value">${total_score}/${max_score} puncte</span>
+      <span class="score-value">${total_score}/${maxScore} puncte</span>
       <span class="score-percent">(${percentage.toFixed(1)}%)</span>
     </div>
   `;
@@ -290,7 +304,7 @@ function populatePreviousScore(authData) {
   }
 }
 
-// NOUĂ FUNCȚIE: Populează raportul anterior
+// Populează raportul anterior
 function populatePreviousReport(authData) {
   const previousReportElement = document.getElementById('previous-report');
   if (!previousReportElement || !authData.previous_attempt) return;
@@ -312,7 +326,7 @@ function populatePreviousReport(authData) {
   }
 }
 
-// NOUĂ FUNCȚIE: Populează opțiunile pentru încercarea anterioară
+// Populează opțiunile pentru încercarea anterioară
 function populatePreviousAttemptOptions(authData) {
   const retryInfoText = document.getElementById('retry-info-text');
   const retryButton = document.getElementById('retry-exercise-btn');
@@ -345,7 +359,7 @@ function populatePreviousAttemptOptions(authData) {
   }
 }
 
-// NOUĂ FUNCȚIE: Începe o încercare nouă din secțiunea anterioară
+// Începe o încercare nouă din secțiunea anterioară
 async function startNewAttemptFromPrevious() {
   const retryBtn = document.getElementById('retry-exercise-btn');
   if (!retryBtn) return;
@@ -425,7 +439,7 @@ function initializeProgressTracking(authData, shouldRestoreInUI = null) {
   }
 }
 
-// Restaurează progresul din baza de date (rămâne neschimbată)
+// Restaurează progresul din baza de date
 function restoreExistingProgress(progressData) {
   progressData.forEach((progressItem) => {
     const stepIndex = progressItem.step_number - 1; // Convertire 0-based
@@ -548,7 +562,7 @@ function navigateToFirstAvailableStep() {
   updateNavigation();
 }
 
-// Restaurează răspunsul unui pas în interfață (rămâne neschimbată)
+// Restaurează răspunsul unui pas în interfață
 function restoreStepAnswer(stepIndex, answer) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const stepData = worksheetSteps[stepIndex];
@@ -612,7 +626,7 @@ async function submitStepToServer(stepIndex, answer) {
       };
 
       // Afișează feedback-ul și marchează UI-ul ca completat
-      showStepFeedback(stepIndex, data.feedback, data.score, data.maxPoints);
+      showStepFeedback(stepIndex, data.feedback, data.score);
       setStepCompletedState(stepElement);
 
       // Actualizează navigarea și progresul
@@ -739,28 +753,37 @@ function retryCurrentStep(stepIndex) {
   }
 }
 
-// Afișează feedback-ul pentru un pas cu design îmbunătățit
-function showStepFeedback(stepIndex, feedback, score, maxPoints) {
+// REFACTORIZAT: Afișează feedback-ul pentru un pas - fără hardcoding de scoring
+function showStepFeedback(stepIndex, feedback, score = null) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const feedbackContainer = stepElement.querySelector('.feedback');
   const scoreElement = stepElement.querySelector('.feedback-score');
   const textElement = stepElement.querySelector('.feedback-text');
 
-  // Populează feedback-ul
+  // Afișează scorul doar dacă exercițiul are scoring și scorul există
   if (scoreElement) {
-    scoreElement.textContent = `Punctaj: ${score}/${maxPoints} puncte`;
+    if (exerciseConfig.has_scoring && score !== null && score !== undefined) {
+      const stepData = worksheetSteps[stepIndex];
+      const maxPoints = stepData.points || 0;
+      scoreElement.textContent = `Punctaj: ${score}/${maxPoints} puncte`;
+      scoreElement.style.display = 'block';
 
-    // Adaugă clasa CSS bazată pe performanță
-    const percentage = (score / maxPoints) * 100;
-    if (percentage >= 80) {
-      scoreElement.classList.add('score-excellent');
-    } else if (percentage >= 60) {
-      scoreElement.classList.add('score-good');
+      // Adaugă clasa CSS bazată pe performanță
+      const percentage = maxPoints > 0 ? (score / maxPoints) * 100 : 0;
+      if (percentage >= 80) {
+        scoreElement.classList.add('score-excellent');
+      } else if (percentage >= 60) {
+        scoreElement.classList.add('score-good');
+      } else {
+        scoreElement.classList.add('score-needs-improvement');
+      }
     } else {
-      scoreElement.classList.add('score-needs-improvement');
+      // Ascunde scorul pentru exerciții fără punctaje
+      scoreElement.style.display = 'none';
     }
   }
 
+  // Afișează feedback-ul AI
   if (textElement) {
     textElement.textContent = feedback;
   }
@@ -808,7 +831,6 @@ function isValidGrilaAnswer(stepIndex) {
   const selectedOption = stepElement.querySelector('input[type="radio"]:checked');
   return selectedOption !== null;
 }
-
 function isValidShortAnswer(stepIndex) {
   const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`);
   const textarea = stepElement.querySelector('.short-answer');
