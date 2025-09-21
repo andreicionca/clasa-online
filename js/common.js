@@ -4,6 +4,17 @@
 // Variabile globale pentru configurația exercițiului
 let exerciseConfig = null;
 
+// Variabile globale pentru mesajele loading
+let loadingMessages = [
+  { text: 'AI-ul își pune ochelarii de citit...', duration: 3000, dataAttr: 'glasses' },
+  { text: 'A început să analizeze răspunsul...', duration: 4000, dataAttr: 'analyzing' },
+  { text: 'Verifică de două ori să fie sigur...', duration: 3000, dataAttr: 'checking' },
+  { text: 'Aproape gata!', duration: 2000, dataAttr: 'almost' },
+];
+
+let currentMessageIndex = 0;
+let messageTimer = null;
+
 // Funcția de inițializare a paginii
 function initializePage() {
   // Verifică dacă există cod salvat în localStorage
@@ -176,6 +187,7 @@ function populateWorksheetHeader(authData) {
   const worksheetTitle = `${
     authData.worksheet.title
   } - ${authData.worksheet.subject.toUpperCase()}`;
+  document.title = authData.worksheet.title;
 
   document.getElementById('student-name').textContent = studentName;
   document.getElementById('worksheet-title').textContent = worksheetTitle;
@@ -666,21 +678,30 @@ async function submitStepToServer(stepIndex, answer) {
 }
 
 // Setează UI-ul în stare de loading pentru submit
+// MODIFICATĂ: Setează UI-ul în stare de loading pentru submit cu mesaje dinamice
 function setStepSubmitLoadingState(stepElement, isLoading) {
   const submitBtn = stepElement.querySelector('.submit-step-btn');
 
   if (isLoading) {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Se procesează cu AI...';
     submitBtn.classList.add('loading');
+
+    // Auto-scroll la buton
+    submitBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     // Dezactivează input-urile temporar
     const inputs = stepElement.querySelectorAll('input, textarea');
     inputs.forEach((input) => {
       input.disabled = true;
     });
+
+    // Începe ciclul de mesaje dinamice
+    startLoadingMessages(submitBtn);
   } else {
+    // Oprește mesajele și resetează
+    stopLoadingMessages();
     submitBtn.classList.remove('loading');
+    submitBtn.removeAttribute('data-message');
 
     // Reactivează input-urile
     const inputs = stepElement.querySelectorAll('input, textarea');
@@ -688,6 +709,38 @@ function setStepSubmitLoadingState(stepElement, isLoading) {
       input.disabled = false;
     });
   }
+}
+
+// Începe ciclul de mesaje dinamice
+function startLoadingMessages(button) {
+  currentMessageIndex = 0;
+
+  function showNextMessage() {
+    if (currentMessageIndex < loadingMessages.length) {
+      const message = loadingMessages[currentMessageIndex];
+
+      // Setează textul și atributul data-message pentru CSS
+      button.textContent = message.text;
+      button.setAttribute('data-message', message.dataAttr);
+
+      // Programează următorul mesaj
+      messageTimer = setTimeout(() => {
+        currentMessageIndex++;
+        showNextMessage();
+      }, message.duration);
+    }
+  }
+
+  showNextMessage();
+}
+
+// Oprește ciclul de mesaje
+function stopLoadingMessages() {
+  if (messageTimer) {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+  }
+  currentMessageIndex = 0;
 }
 
 // Setează UI-ul în stare de eroare pentru submit (dar permite retry)
