@@ -371,7 +371,19 @@ async function startNewAttemptFromPrevious() {
 
   try {
     // Apelează funcția existentă pentru reset complet
-    await startNewAttempt();
+    if (typeof initializeSpecificWorksheet === 'function') {
+      // Actualizează datele de autentificare pentru noua încercare
+      authenticationData.session.current_attempt = authenticationData.session.current_attempt;
+      authenticationData.session.progress = null;
+      authenticationData.session.should_restore_progress = false;
+      authenticationData.session.show_previous_attempt_info = false;
+
+      // Re-inițializează worksheet-ul complet (reconstituie interfața)
+      initializeSpecificWorksheet(authenticationData);
+    } else {
+      // Fallback: doar reset fără re-inițializare
+      await startNewAttempt();
+    }
 
     // Ascunde secțiunea anterioară și afișează worksheet-ul
     document.getElementById('previous-attempt-section').classList.add('hidden');
