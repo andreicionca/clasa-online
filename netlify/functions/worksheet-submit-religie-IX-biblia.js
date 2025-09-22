@@ -181,10 +181,9 @@ function extractStepNumber(question) {
 
 // Construiește prompt pentru raportul final
 function buildFinalReportPrompt(student, performanceData, allStepsData, exerciseConfig) {
-  // Calculează scorul cu punctul bonus
-  const originalScore = performanceData.totalScore;
-  const finalScore = originalScore + 1; // +1 punct bonus
-  const maxScore = 10; // 9 întrebări + 1 bonus
+  // Calculează scorul final și procentajul
+  const finalScore = performanceData.totalScore;
+  const maxScore = 9; // 9 întrebări
   const percentage = (finalScore / maxScore) * 100;
 
   return `Ești un profesor de religie, cald, amuzant și înțelegător, care predă despre Biblie elevilor de clasa a IX-a. Elevul ${
@@ -203,9 +202,7 @@ Feedback individual: "${step.feedback.substring(0, 80)}..."
   )
   .join('')}
 
-REZULTAT FINAL: ${originalScore}/9 puncte + 1 punct bonus pentru participare = ${finalScore}/10 puncte (${percentage.toFixed(
-    1
-  )}%)
+REZULTAT FINAL: ${finalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
 
 INSTRUCȚIUNI PENTRU RAPORTUL FINAL:
 - Oferă o analiză completă și încurajatoare a cunoștințelor elevului despre Biblie
