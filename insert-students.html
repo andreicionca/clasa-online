@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inserare Elevi</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .student-code {
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .results {
+        margin-top: 20px;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Inserare Elevi în Baza de Date</h1>
+    <p><strong>Format cod:</strong> 6 caractere (ex: A3K7N2)</p>
+    <p><strong>Caractere folosite:</strong> A-Z și 2-9 (fără confuzii)</p>
+
+    <button onclick="insertStudents()">Inserează Elevii</button>
+    <div id="results" class="results"></div>
+
+    <script>
+      // Lista cu toți elevii - exemple cu numele normale și clasa completă
+      const studentsData = [
+        // Clasa IX A
+        { name: 'Denis', surname: 'Barle', grade: 'IX A' },
+        { name: 'Ioana Victoria', surname: 'Biris', grade: 'IX A' },
+        { name: 'David-Alexandru', surname: 'Bizo', grade: 'IX A' },
+        { name: 'David-Cristian', surname: 'Blazs', grade: 'IX A' },
+        { name: 'Marc', surname: 'Bogdan', grade: 'IX A' },
+        { name: 'Mihai', surname: 'Bonaț', grade: 'IX A' },
+        { name: 'Ianis-Andrei', surname: 'Cioclu', grade: 'IX A' },
+        { name: 'Andrei-Vasile', surname: 'Hotca', grade: 'IX A' },
+        { name: 'Daniel-Ionuț', surname: 'Husti', grade: 'IX A' },
+        { name: 'David-Adrian', surname: 'Ionce', grade: 'IX A' },
+        { name: 'Fabian-Eusebiu', surname: 'Ionce', grade: 'IX A' },
+        { name: 'David-Mario', surname: 'Iveghes', grade: 'IX A' },
+        { name: 'Raul-Ștefan', surname: 'Krisan', grade: 'IX A' },
+        { name: 'Răzvan-Lucian', surname: 'Luca', grade: 'IX A' },
+        { name: 'Elemér-Béla', surname: 'Miklos', grade: 'IX A' },
+        { name: 'Patrick-Cristian', surname: 'Moje', grade: 'IX A' },
+        { name: 'Adrian-Nicolae', surname: 'Onise', grade: 'IX A' },
+        { name: 'Iulia-Claudia', surname: 'Pomean', grade: 'IX A' },
+        { name: 'Andreea', surname: 'Pop', grade: 'IX A' },
+        { name: 'Luca-Georgel', surname: 'Pustai', grade: 'IX A' },
+        { name: 'Anastasia-Maria', surname: 'Suciu', grade: 'IX A' },
+        { name: 'Amalia-Ioana', surname: 'Szűcs', grade: 'IX A' },
+        { name: 'Ion-Alexandru', surname: 'Trif', grade: 'IX A' },
+        { name: 'Andras', surname: 'Vas', grade: 'IX A' },
+        { name: 'Ayman-Ahmed', surname: 'Zenasni', grade: 'IX A' },
+
+        // AICI ADAUGI RESTUL:
+        // Clasa IX B, IX C, X A, X B, etc.
+        // { name: 'NumeElev', surname: 'PrenumeleElev', grade: 'IX B' },
+      ];
+
+      async function insertStudents() {
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '<p>Se inserează elevii...</p>';
+
+        try {
+          const response = await fetch('/.netlify/functions/bulk-insert-students', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              students: studentsData,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            let html = `<h2 class="success">✅ Succes! ${result.count} elevi inserați</h2>`;
+            html += '<h3>Lista cu codurile generate:</h3><ul>';
+
+            result.students.forEach((student) => {
+              html += `<li><strong>${student.surname} ${student.name}</strong> (${student.grade}) - Cod: <span class="student-code">${student.access_code}</span></li>`;
+            });
+
+            html += '</ul>';
+
+            // Adaugă format pentru copy-paste
+            html +=
+              '<h3>Format pentru distribuire:</h3><textarea style="width: 100%; height: 200px;">';
+            result.students.forEach((student) => {
+              html += `${student.surname} ${student.name} (${student.grade}) - ${student.access_code}\n`;
+            });
+            html += '</textarea>';
+
+            resultsDiv.innerHTML = html;
+          } else {
+            resultsDiv.innerHTML = `<p class="error">❌ Eroare: ${result.error}</p>`;
+          }
+        } catch (error) {
+          resultsDiv.innerHTML = `<p class="error">❌ Eroare de conexiune: ${error.message}</p>`;
+        }
+      }
+    </script>
+  </body>
+</html>
