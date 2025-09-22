@@ -75,7 +75,7 @@ function buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig) 
   const stepNumber = extractStepNumber(stepData.question);
   const contextInfo = CORRECT_ANSWERS_CONTEXT[stepNumber];
 
-  const basePrompt = `Ești un profesor de religie, cald, amuzant și înțelegător, care predă despre Biblia pentru clasa a IX-a. Răspunde în maxim 3 propoziții cu ton încurajator și educativ.
+  const basePrompt = `Ești un profesor de religie care evaluează cunoștințele elevilor despre Biblie cu corectitudine și obiectivitate. Evaluează răspunsul precis și oferă feedback în 3-4 propoziții cu ton constructiv.
 
 Elevul ${student.name} ${student.surname} a răspuns la întrebarea:
 "${stepData.question}"
@@ -119,11 +119,12 @@ RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI, FĂRĂ JSON SAU ALTE FORMATĂRI.`;
 }
 
 // Construiește prompt dinamic pentru răspunsuri scurte
+// Construiește prompt dinamic pentru răspunsuri scurte
 function buildShortPrompt(stepData, student, answer, exerciseConfig) {
   const stepNumber = extractStepNumber(stepData.question);
   const contextInfo = CORRECT_ANSWERS_CONTEXT[stepNumber];
 
-  return `Ești un profesor de religie, cald și înțelegător, care evaluează cunoștințele elevilor despre Biblie. Evaluează răspunsul cu corectitudine și oferă feedback în 3-4 propoziții cu ton încurajator.
+  return `Ești un profesor de religie care evaluează cunoștințele elevilor despre Biblie cu corectitudine și obiectivitate. Evaluează răspunsul precis și oferă feedback în 3-4 propoziții cu ton constructiv.
 
 Elevul ${student.name} ${student.surname} a răspuns la întrebarea:
 "${stepData.question}"
@@ -139,21 +140,21 @@ ${contextInfo?.context || ''}
 
 Punctaj maxim disponibil: ${stepData.points} punct
 
-INSTRUCȚIUNI DE EVALUARE - FII ECHITABIL:
-- Acordă 1 punct complet DOAR dacă răspunsul conține TOATE elementele cerute în întrebare
-- Acordă 0.5 puncte pentru răspunsuri parțial corecte (ex: conține jumătate din informația cerută)
-- Acordă 0 puncte pentru răspunsuri greșite sau irelevante
-- Pentru întrebări cu părți multiple (ex: "autorul ȘI două evenimente"), toate părțile trebuie prezente pentru punctaj complet
-- Pentru întrebarea 9 (personaj biblic), acordă 1 punct pentru orice personaj sau povestire biblică validă cu o descriere minimă
-- Verifică atent dacă răspunsul răspunde exact la ceea ce se cere în întrebare
-- Nu fi îngăduitor cu răspunsurile incomplete - elevii trebuie să demonstreze că au învățat
+INSTRUCȚIUNI DE EVALUARE - FII PRECIS ȘI CORECT:
+- Acordă 1 punct complet DOAR dacă răspunsul conține TOATE elementele cerute și sunt corecte
+- Acordă 0.5 puncte pentru răspunsuri parțial corecte (ex: o parte corectă, o parte greșită sau lipsă)
+- Acordă 0 puncte pentru răspunsuri în mare parte greșite
+- NU lauda informații greșite - corectează-le direct
+- Pentru răspunsuri parțial greșite, explică ce este corect și ce este greșit, fără să minimalizezi erorile
+- Pentru întrebarea 9 (personaj biblic), acordă 1 punct pentru orice personaj sau povestire biblică validă
+- Fii direct și honest în evaluare - scopul este învățarea corectă
 
 FORMATARE OBLIGATORIE:
 - Folosește bullet points cu "•" pentru fiecare idee principală
 - Separă fiecare punct pe linie nouă
 - Maxim 3-4 puncte principale
 - Fiecare punct să aibă maxim 1-2 propoziții
-- Termină cu o încurajare creștină caldă
+- Termină cu o încurajare pentru studiul corect
 
 OBLIGATORIU - Răspunde EXACT în acest format:
 PUNCTAJ: [0, 0.5, sau 1]
