@@ -148,7 +148,7 @@ function setupShortStep(stepElement, stepData, stepIndex) {
 
     // Afișează alarma în textarea
     textarea.value =
-      '📖 Mesaj din Biblie: "Să nu copiezi răspunsurile! Dumnezeu vede toate și vrea să-ți cunoască gândurile sincere!" 🙏';
+      '🧠 ChatGPT speaking: Te-am prins! Nu copia răspunsurile. Dumnezeu vede toate și vrea să-ți cunoască gândurile sincere!" 🙏';
     textarea.style.backgroundColor = '#fff3cd';
     textarea.style.color = '#856404';
     textarea.style.fontWeight = 'bold';
