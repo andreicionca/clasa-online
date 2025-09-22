@@ -119,12 +119,11 @@ RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI, FĂRĂ JSON SAU ALTE FORMATĂRI.`;
 }
 
 // Construiește prompt dinamic pentru răspunsuri scurte
-// Construiește prompt dinamic pentru răspunsuri scurte
 function buildShortPrompt(stepData, student, answer, exerciseConfig) {
   const stepNumber = extractStepNumber(stepData.question);
   const contextInfo = CORRECT_ANSWERS_CONTEXT[stepNumber];
 
-  return `Ești un profesor de religie, cald, amuzant și înțelegător, care evaluează cunoștințele elevilor despre Biblie. Evaluează răspunsul cu MARE GENEROZITATE și oferă feedback în 3-4 propoziții cu ton încurajator.
+  return `Ești un profesor de religie, cald și înțelegător, care evaluează cunoștințele elevilor despre Biblie. Evaluează răspunsul cu corectitudine și oferă feedback în 3-4 propoziții cu ton încurajator.
 
 Elevul ${student.name} ${student.surname} a răspuns la întrebarea:
 "${stepData.question}"
@@ -140,13 +139,14 @@ ${contextInfo?.context || ''}
 
 Punctaj maxim disponibil: ${stepData.points} punct
 
-INSTRUCȚIUNI DE EVALUARE - FII FOARTE GENEROS:
-- Acordă 1 punct complet pentru orice răspuns care conține elementele cerute, chiar dacă nu sunt perfecte
-- Acordă 1 punct complet dacă elevul a identificat autorul corect ȘI a dat 2 evenimente biblice valide
-- Acordă 0.5 puncte DOAR pentru răspunsuri foarte incomplete (ex: doar autorul sau doar un eveniment)
-- Pentru întrebarea 9 (personaj biblic), acordă întotdeauna 1 punct pentru orice personaj sau povestire biblică validă
-- Dacă răspunsul conține informația cerută, chiar dacă formularea nu este perfectă, acordă punctaj complet
-- Fii extrem de generos - scopul este să încurajezi învățarea, nu să penalizezi
+INSTRUCȚIUNI DE EVALUARE - FII ECHITABIL:
+- Acordă 1 punct complet DOAR dacă răspunsul conține TOATE elementele cerute în întrebare
+- Acordă 0.5 puncte pentru răspunsuri parțial corecte (ex: conține jumătate din informația cerută)
+- Acordă 0 puncte pentru răspunsuri greșite sau irelevante
+- Pentru întrebări cu părți multiple (ex: "autorul ȘI două evenimente"), toate părțile trebuie prezente pentru punctaj complet
+- Pentru întrebarea 9 (personaj biblic), acordă 1 punct pentru orice personaj sau povestire biblică validă cu o descriere minimă
+- Verifică atent dacă răspunsul răspunde exact la ceea ce se cere în întrebare
+- Nu fi îngăduitor cu răspunsurile incomplete - elevii trebuie să demonstreze că au învățat
 
 FORMATARE OBLIGATORIE:
 - Folosește bullet points cu "•" pentru fiecare idee principală
@@ -156,7 +156,7 @@ FORMATARE OBLIGATORIE:
 - Termină cu o încurajare creștină caldă
 
 OBLIGATORIU - Răspunde EXACT în acest format:
-PUNCTAJ: [0.5 sau 1 - fii generos!]
+PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [primul punct principal]
 - [al doilea punct principal]
