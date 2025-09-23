@@ -1,6 +1,6 @@
 // netlify/functions/worksheet-submit-religie-IX-biblia.js
 // Funcția AI specializată pentru feedback-ul activității "Biblia – Cartea Cărților"
-// Sistem nou cu prompt-uri specifice pentru fiecare întrebare
+// Sistem nou cu prompt-uri specifice și fragmente din textul sursă
 
 const OpenAI = require('openai');
 
@@ -44,19 +44,22 @@ function buildShortPrompt(stepData, student, answer, exerciseConfig) {
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
-CRITERII DE PUNCTARE:
-- 1 PUNCT: Menționează "1400 î.Hr." sau "secolul XIV î.Hr." (cu variații acceptabile)
-- 0.5 PUNCTE: Perioada aproximativ corectă (1500-1300 î.Hr. sau "Epoca lui Moise")
-- 0 PUNCTE: Perioada complet greșită
+FRAGMENTUL DIN TEXTUL DAT:
+"Prima carte a fost scrisă de Moise în jurul anului 1400 î.Hr. – Facerea (Geneza)."
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+CRITERII DE PUNCTARE:
+- 1 PUNCT: Menționează "1400 î.Hr." sau formulări echivalente (ex: secolul XIV î.Hr.)
+- 0.5 PUNCTE: Perioada aproximativ corectă (1500-1300 î.Hr.) sau "Epoca lui Moise"
+- 0 PUNCTE: Informații complet greșite
+
+APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe biblice proprii.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă sunt probleme reale]
+- [întrebare reflexivă despre importanța acestei perioade]`;
 
     case 2: // Autor + evenimente
       return `Tu ești profesor de religie. Evaluezi răspunsul despre prima carte a Bibliei.
@@ -64,26 +67,26 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+FRAGMENTUL DIN TEXTUL DAT:
+"un om numit Moise a început să scrie primele texte. Prima carte se numește Facerea (Geneza) și povestește începutul lumii, viața lui Adam și Eva, potopul lui Noe și alegerea lui Avraam."
+
 CRITERII DE PUNCTARE:
-- 1 PUNCT: Moise + minimum 2 evenimente din Geneza
-- 0.5 PUNCTE: Moise + 1 eveniment SAU doar 2+ evenimente corecte fără autor
-- 0 PUNCTE: Lipsesc majoritatea elementelor sau sunt greșite
+- 1 PUNCT: Moise + minimum 2 evenimente biblice corecte din Geneza
+- 0.5 PUNCTE: Moise + 1 eveniment SAU doar 2+ evenimente fără autor
+- 0 PUNCTE: Informații lipsă sau greșite
 
-EVENIMENTE VALIDE DIN GENEZA (acceptă orice formulare):
-- Crearea lumii/începutul lumii/facerea/creația
-- Viața lui Adam și Eva/crearea omului/primul om
-- Potopul lui Noe/potopul/arca lui Noe
-- Alegerea lui Avraam/chemarea lui Avraam
-- Turnul Babel, Căderea în păcat, Povestea lui Iosif
+EVENIMENTE BIBLICE VALIDE (din text sau cunoștințe proprii):
+- Din text: începutul lumii, viața lui Adam și Eva, potopul lui Noe, alegerea lui Avraam
+- Alte evenimente corecte din Geneza: Căderea în păcat, Turnul Babel, Povestea lui Iosif, Sacrificiul lui Avraam, etc.
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+APRECIAZĂ dacă elevul citează fidel din text SAU demonstrează cunoștințe biblice proprii.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursele de informații - text și/sau cunoștințe proprii]
+- [doar dacă lipsesc informații esențiale]
+- [întrebare reflexivă despre semnificația acestor evenimente]`;
 
     case 3: // Ultima carte
       return `Tu ești profesor de religie. Evaluezi răspunsul despre ultima carte a Bibliei.
@@ -91,19 +94,22 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
-CRITERII DE PUNCTARE:
-- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (90-100 d.Hr.)
-- 0.5 PUNCTE: Ioan SAU perioada aproximativ corectă (80-110 d.Hr.)
-- 0 PUNCTE: Ambele informații greșite
+FRAGMENTUL DIN TEXTUL DAT:
+"Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr., arată prin imagini simbolice lupta dintre bine și rău și victoria finală a lui Dumnezeu."
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+CRITERII DE PUNCTARE:
+- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (95 d.Hr. sau similar)
+- 0.5 PUNCTE: Ioan SAU perioada aproximativ corectă (80-110 d.Hr.)
+- 0 PUNCTE: Informații în mare parte greșite
+
+APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe biblice proprii.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă sunt probleme reale]
+- [întrebare reflexivă despre semnificația Apocalipsei]`;
 
     case 4: // Fragment vechi NT
       return `Tu ești profesor de religie. Evaluezi răspunsul despre cel mai vechi fragment al Noului Testament.
@@ -111,19 +117,22 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+FRAGMENTUL DIN TEXTUL DAT:
+"Cel mai vechi fragment al Noului Testament este Papirusul P52, datat în jurul anului 120 d.Hr."
+
 CRITERII DE PUNCTARE:
-- 1 PUNCT: P52/Papirusul P52 + perioada corectă (120 d.Hr.)
+- 1 PUNCT: P52/Papirusul P52 + perioada corectă (120 d.Hr. sau similar)
 - 0.5 PUNCTE: P52 SAU perioada aproximativ corectă (100-150 d.Hr.)
 - 0 PUNCTE: Informații în mare parte greșite
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe despre manuscrise biblice.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă sunt probleme reale]
+- [întrebare reflexivă despre importanța manuscriselor vechi]`;
 
     case 5: // Materiale scriere
       return `Tu ești profesor de religie. Evaluezi răspunsul despre materialele pe care se scriau textele biblice.
@@ -131,19 +140,22 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+FRAGMENTUL DIN TEXTUL DAT:
+"Materialul: inițial s-a folosit papirusul, o „hârtie" obținută dintr-o plantă care creștea la Nil. Mai târziu s-a folosit și pergamentul (piele de animal)."
+
 CRITERII DE PUNCTARE:
-- 1 PUNCT: 2 materiale corecte + modurile de obținere (Papirus din planta de la Nil, Pergament din piele)
+- 1 PUNKT: 2 materiale corecte + modurile de obținere (papirus din planta de la Nil, pergament din piele)
 - 0.5 PUNCTE: 1-2 materiale corecte, dar fără toate detaliile despre obținere
 - 0 PUNCTE: Informații în mare parte greșite
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse materialele antice de scriere.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă lipsesc detalii importante]
+- [întrebare reflexivă despre conservarea textelor antice]`;
 
     case 6: // Limbi Biblie
       return `Tu ești profesor de religie. Evaluezi răspunsul despre limbile în care a fost scrisă Biblia.
@@ -151,21 +163,22 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+FRAGMENTUL DIN TEXTUL DAT:
+"Ebraica – limba poporului Israel, în care s-a scris majoritatea Vechiului Testament. Aramaica – limbă vorbită în Orientul Apropiat, prezentă în câteva fragmente. Greaca koiné – limba comună a secolului I, în care a fost scris Noul Testament."
+
 CRITERII DE PUNCTARE:
-- 1 PUNCT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca koiné-NT)
+- 1 PUNCT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca -NT)
 - 0.5 PUNCTE: 1-2 limbi corecte, dar fără toate asocierile cu secțiunile
 - 0 PUNCTE: Informații în mare parte greșite
 
-LIMBI ACCEPTABILE: Ebraica (VT), Greaca/Greaca koiné (NT), Aramaica (părți din VT)
-
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse limbile biblice.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă lipsesc asocieri importante]
+- [întrebare reflexivă despre diversitatea lingvistică a Bibliei]`;
 
     case 7: // Număr cărți
       return `Tu ești profesor de religie. Evaluezi răspunsul despre numărul cărților din Biblie.
@@ -173,19 +186,22 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+FRAGMENTUL DIN TEXTUL DAT:
+"În total, Biblia are 66 de cărți: 39 alcătuiesc Vechiul Testament, 27 alcătuiesc Noul Testament."
+
 CRITERII DE PUNCTARE:
 - 1 PUNCT: 66 cărți + împărțirea corectă (39 VT + 27 NT)
 - 0.5 PUNCTE: Numărul total corect SAU împărțirea corectă
 - 0 PUNCTE: Informații în mare parte greșite
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse structura Bibliei.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă lipsesc detalii despre împărțire]
+- [întrebare reflexivă despre unitatea dintre VT și NT]`;
 
     case 8: // Prima traducere română
       return `Tu ești profesor de religie. Evaluezi răspunsul despre prima traducere completă a Bibliei în română.
@@ -193,19 +209,22 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+FRAGMENTUL DIN TEXTUL DAT:
+"Prima traducere completă în română a fost tipărită la București, în 1688."
+
 CRITERII DE PUNCTARE:
 - 1 PUNCT: București + 1688 (ambele informații corecte)
 - 0.5 PUNCTE: București SAU 1688 (una dintre informații corectă)
 - 0 PUNCTE: Ambele informații greșite
 
-FII GENEROS în interpretare - dacă elevul înțelege ideea principală, nu penaliza pentru formulări.
+APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse istoria traducerilor biblice.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]`;
+- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
+- [doar dacă lipsesc detalii importante]
+- [întrebare reflexivă despre importanța traducerilor în limba națională]`;
 
     case 9: // Personaj biblic
       return `Tu ești profesor de religie. Evaluezi răspunsul despre un personaj sau povestire biblică.
@@ -213,21 +232,21 @@ FEEDBACK:
 ÎNTREBAREA: "${stepData.question}"
 RĂSPUNSUL ELEVULUI: "${answer}"
 
+
+
 CRITERII GENEROASE DE PUNCTARE:
-- 1 PUNCT: Orice personaj sau povestire biblică validă + scurtă descriere relevantă
-- 0.5 PUNCTE: Personaj biblic corect dar descrierea foarte vagă sau incompletă
+- 1 PUNCT: Orice personaj sau povestire biblică validă + descriere relevantă (din cunoștințe proprii)
+- 0.5 PUNCTE: Personaj biblic corect dar descrierea foarte vagă
 - 0 PUNCTE: Personaj/povestire non-biblică sau informații complet greșite
 
-PERSONAJE/POVESTIRI BIBLICE VALIDE: Isus, Moise, David, Avraam, Noe, Maria, apostolii, profeții, Facerea, Exodul, pildele, minunile, etc.
-
-FII FOARTE GENEROS - scopul este să-și amintească ceva din Biblie și să demonstreze conexiunea spirituală!
+APRECIAZĂ creativitatea și conexiunea personală cu textele biblice, indiferent de sursa informațiilor.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
-- [ce a făcut bine elevul - apreciază personajul ales]
-- [adaugă ceva interesant despre personaj dacă e cazul]
-- [încurajare spirituală/întrebare reflexivă]`;
+- [apreciază personajul ales și sursa cunoștințelor]
+- [adaugă o perspectivă interesantă despre personaj dacă e cazul]
+- [întrebare reflexivă despre relevanța personajului pentru elevul de azi]`;
 
     default:
       return `Tu ești profesor de religie. Evaluezi răspunsul: "${answer}"
@@ -364,7 +383,6 @@ async function handleStepFeedback(requestData) {
     let score = 0;
 
     if (stepData.type === 'grila') {
-      // Pentru întrebări cu grile - punctajul este automat calculat
       score = isCorrect ? 1 : 0;
 
       const prompt = buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig);
@@ -392,7 +410,6 @@ async function handleStepFeedback(requestData) {
         throw new Error('OpenAI nu a returnat feedback valid pentru grila');
       }
     } else if (stepData.type === 'short') {
-      // Pentru răspunsuri scurte - AI calculează punctajul
       const prompt = buildShortPrompt(stepData, student, answer, exerciseConfig);
 
       const aiResponse = await openai.chat.completions.create({
@@ -403,7 +420,7 @@ async function handleStepFeedback(requestData) {
           {
             role: 'system',
             content:
-              'Tu ești profesor de religie pentru clasa a IX-a. Fii generos în punctare și oferă feedback constructiv.',
+              'Tu ești profesor de religie pentru clasa a IX-a. Apreciază atât cunoștințele din text cât și cele proprii ale elevului.',
           },
           {
             role: 'user',
@@ -418,14 +435,13 @@ async function handleStepFeedback(requestData) {
         throw new Error('OpenAI nu a returnat răspuns valid');
       }
 
-      // Extrage punctajul și feedback-ul
       const punctajMatch = aiText.match(/PUNCTAJ:\s*([0-9.]+)/i);
       const feedbackMatch = aiText.match(/FEEDBACK:\s*(.+)/is);
 
       if (punctajMatch) {
         score = parseFloat(punctajMatch[1]);
         score = Math.max(0, Math.min(score, 1));
-        score = Math.round(score * 2) / 2; // Rotunjire la 0.5
+        score = Math.round(score * 2) / 2;
       } else {
         throw new Error('AI nu a returnat punctaj în formatul așteptat');
       }
@@ -518,7 +534,7 @@ async function handleFinalReport(requestData) {
         {
           role: 'system',
           content:
-            'Tu ești profesor de religie pentru clasa a IX-a. Oferă rapoarte finale inspirante.',
+            'Tu ești profesor de religie pentru clasa a IX-a. Oferă rapoarte finale inspirante și provocatoare.',
         },
         {
           role: 'user',
