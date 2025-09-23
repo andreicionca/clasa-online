@@ -32,7 +32,7 @@ Fii concis - maxim 1 propoziție per bullet point.
 Răspunde EXACT în formatul:
 FEEDBACK:
 - [ceva factual neutru]
-- [explică greșeala sau răspunsul corect]
+- [explică greșeala sau/și răspunsul corect]
 - [curiositate amuzantă + emoji]
 
 RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI.`;
@@ -61,9 +61,10 @@ APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe biblice
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă sunt probleme reale]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Fun fact: Moise a condus poporul prin deșert 40 de ani. Tu îți pierzi răbdarea dacă aștepți 40 de secunde să se încarce un videoclip pe TikTok. 📱⏳]`;
 
     case 2: // Autor + evenimente
@@ -76,7 +77,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "un om numit Moise a început să scrie primele texte. Prima carte se numește Facerea (Geneza) și povestește începutul lumii, viața lui Adam și Eva, potopul lui Noe și alegerea lui Avraam."
 
 CRITERII DE PUNCTARE:
-- 1 PUNKT: Moise + minimum 2 evenimente biblice corecte din Geneza
+- 1 PUNCT: Moise + minimum 2 evenimente biblice corecte din Geneza
 - 0.5 PUNCTE: Moise + 1 eveniment SAU doar 2+ evenimente fără autor
 - 0 PUNCTE: Informații lipsă sau greșite
 
@@ -88,9 +89,10 @@ APRECIAZĂ dacă elevul citează fidel din text SAU demonstrează cunoștințe b
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursele de informații - text și/sau cunoștințe proprii]
-- [doar dacă lipsesc informații esențiale]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Și acum partea amuzantă: Moise a scris primele cărți ale Bibliei acum peste 3000 de ani — fără Google Docs sau AI. Tu te panichezi când ChatGPT e offline 5 minute. 🤖📴😅`;
 
     case 3: // Ultima carte
@@ -111,9 +113,10 @@ APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe biblice
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă sunt probleme reale]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Detaliu fascinant: Ioan era în exil pe insula Patmos când a primit viziunile pentru Apocalipsa - fără internet, TV sau Netflix, doar el și revelația divină. Probabil ai deveni foarte creativ și tu în asemenea condiții! 🏝️✨]`;
 
     case 4: // Fragment vechi NT
@@ -126,7 +129,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Cel mai vechi fragment al Noului Testament este Papirusul P52, datat în jurul anului 120 d.Hr."
 
 CRITERII DE PUNCTARE:
-- 1 PUNKT: P52/Papirusul P52 + perioada corectă (120 d.Hr. sau similar)
+- 1 PUNCT: P52/Papirusul P52 + perioada corectă (120 d.Hr. sau similar)
 - 0.5 PUNCTE: P52 SAU perioada aproximativ corectă (100-150 d.Hr.)
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -134,9 +137,10 @@ APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe despre 
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă sunt probleme reale]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Mind-blowing: Papirusul P52 are mărimea unei cărți poștale și a supraviețuit aproape 2000 de ani - caietul tău abia rezistă până la sfârșitul semestrului! 📜]`;
 
     case 5: // Materiale scriere
@@ -157,9 +161,10 @@ APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse materiale
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă lipsesc detalii importante]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Ca idee… Papirusul era atât de prețios că se păstra cu grijă sute de ani. Tu nu-ți găsești caietul după două săptămâni. 📚🤯]`;
 
     case 6: // Limbi Biblie
@@ -172,7 +177,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Ebraica – limba poporului Israel, în care s-a scris majoritatea Vechiului Testament. Aramaica – limbă vorbită în Orientul Apropiat, prezentă în câteva fragmente. Greaca koiné – limba comună a secolului I, în care a fost scris Noul Testament."
 
 CRITERII DE PUNCTARE:
-- 1 PUNKT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca-NT)
+- 1 PUNCT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca-NT)
 - 0.5 PUNCTE: 1-2 limbi corecte, dar fără toate asocierile cu secțiunile
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -180,9 +185,10 @@ APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse limbile b
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă lipsesc asocieri importante]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Cool fact: greaca koiné era ca engleza de azi - limba comună pentru comerț și comunicare în toată Mediterana. Era practic "internetul" lingvistic al antichității! 🌍💬]`;
 
     case 8: // Prima traducere română
@@ -195,7 +201,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Prima traducere completă în română a fost tipărită la București, în 1688."
 
 CRITERII DE PUNCTARE:
-- 1 PUNKT: București + 1688 (ambele informații corecte)
+- 1 PUNCT: București + 1688 (ambele informații corecte)
 - 0.5 PUNCTE: București SAU 1688 (una dintre informații corectă)
 - 0 PUNCTE: Ambele informații greșite
 
@@ -203,9 +209,10 @@ APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse istoria t
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă lipsesc detalii importante]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [Remarcabil: prima Biblie românească (1688) valora cât o casă — azi o poți accesa pe telefon gratuit, în câteva secunde. 📖📱]`;
 
     case 9: // Personaj biblic
@@ -216,7 +223,7 @@ RĂSPUNSUL ELEVULUI: "${answer}"
 
 
 CRITERII GENEROASE DE PUNCTARE:
-- 1 PUNKT: Orice personaj sau povestire biblică validă + descriere relevantă (din text, din cunoștințe proprii sau amestec)
+- 1 PUNCT: Orice personaj sau povestire biblică validă + descriere scurtă (din text, din cunoștințe proprii sau amestec)
 - 0.5 PUNCTE: Personaj biblic corect dar descrierea foarte vagă
 - 0 PUNCTE: Personaj/povestire non-biblică sau informații complet greșite
 
@@ -224,9 +231,10 @@ APRECIAZĂ creativitatea și conexiunea personală cu textele biblice, indiferen
 
 Răspunde EXACT:
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază personajul ales și sursa cunoștințelor]
-- [adaugă o perspectivă interesantă despre personaj dacă e cazul]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [curiositate amuzantă personalizată pentru personajul ales, folosind formule variate precum "E fascinant că...", "Gândește-te că...", "Un detaliu interesant:" + analogie modernă + emoji]`;
 
     default:
@@ -234,9 +242,10 @@ FEEDBACK:
 
 Acordă punctaj echitabil între 0, 0.5 și 1.
 PUNCTAJ: [0, 0.5, sau 1]
+Răspunde EXACT în formatul:
 FEEDBACK:
-- [apreciază efortul]
-- [oferă ghidaj]
+- [ceva factual neutru]
+- [explică greșeala sau/și răspunsul corect]
 - [curiositate amuzantă + emoji]`;
   }
 }
