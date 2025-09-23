@@ -39,7 +39,7 @@ const CORRECT_ANSWERS_CONTEXT = {
     correct:
       'Papirus – obținut din planta care creștea la Nil; Pergament – realizat din piele de animal',
     context:
-      'Materialele principale erau: Papirusul - obținut din planta de papirus care creștea pe malurile Nilului în Egipt, și Pergamentul - realizat din piele de animal (oaie, capră, vițel) prelucrata special pentru scriere.',
+      'Materialele principale erau: Papirusul - obținut din planta de papirus care creștea la Nil, și Pergamentul - realizat din piele de animal.',
   },
   6: {
     question:
@@ -141,13 +141,13 @@ ${contextInfo?.context || ''}
 Punctaj maxim disponibil: ${stepData.points} punct
 
 INSTRUCȚIUNI DE EVALUARE - FII PRECIS ȘI CORECT:
-- Acordă 1 punct complet DOAR dacă răspunsul conține TOATE elementele cerute și sunt corecte
+- Acordă 1 punct complet dacă răspunsul conține elementele cerute și sunt corecte
 - Acordă 0.5 puncte pentru răspunsuri parțial corecte (ex: o parte corectă, o parte greșită sau lipsă)
 - Acordă 0 puncte pentru răspunsuri în mare parte greșite
 - NU lauda informații greșite - corectează-le direct
 - Pentru răspunsuri parțial greșite, explică ce este corect și ce este greșit, fără să minimalizezi erorile
 - Pentru întrebarea 9 (personaj biblic), acordă 1 punct pentru orice personaj sau povestire biblică validă
-- Fii direct și honest în evaluare - scopul este învățarea corectă
+- Fii direct și onest în evaluare - scopul este învățarea corectă
 
 FORMATARE OBLIGATORIE:
 - Folosește bullet points cu "•" pentru fiecare idee principală
