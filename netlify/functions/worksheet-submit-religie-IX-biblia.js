@@ -27,7 +27,8 @@ ${
     : 'Explică cu răbdare de ce răspunsul corect este cel adevărat și oferă informații care să-l ajute pe elev să înțeleagă.'
 }
 
-FORMATARE:
+Răspunde EXACT în formatul:
+FEEDBACK:
 - [ce a făcut bine elevul]
 - [ce ar putea îmbunătăți, dar numai dacă e cazul]
 - [curiositate amuzantă cu stil casual + emoji]
