@@ -100,7 +100,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr., arată prin imagini simbolice lupta dintre bine și rău și victoria finală a lui Dumnezeu."
 
 CRITERII DE PUNCTARE:
-- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (95 d.Hr. sau alt an din jurul acestei date)
+- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (95 d.Hr. sau orice alt an din jurul acestuia)
 - 0.5 PUNCTE: Ioan SAU perioada aproximativ corectă (80-110 d.Hr.)
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -258,28 +258,20 @@ function buildFinalReportPrompt(student, performanceData, allStepsData, exercise
   const maxScore = 9;
   const percentage = (finalScore / maxScore) * 100;
 
-  return `Tu ești profesor de religie. Elevul ${student.name} ${
+  return `Tu ești profesor de religie prietenos. Elevul ${student.name} ${
     student.surname
   } a terminat activitatea "Biblia – Cartea Cărților".
 
-PERFORMANȚA ELEVULUI:
-${performanceData.stepResults
-  .map((step, index) => `Întrebarea ${index + 1}: ${step.score}/1 punct`)
-  .join('\n')}
+PERFORMANȚA: ${finalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
 
-REZULTAT FINAL: ${finalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
+Oferă un raport final scurt și personal în 4 puncte cu bullet points:
 
-Oferă un raport final în 4 puncte, fiind autentic și provocator în abordare:
+- **Ce ți-a ieșit cel mai bine:** [ce cunoștințe biblice a demonstrat solid]
+- **Merită să aprofundezi:** [aspecte de explorat, formulate pozitiv]
+- **Știai că…?:** [un fapt interesant legat de subiect + emoji]
+- **Pasul următor:** [o sugestie practică și personală pentru continuare]
 
-- DESCOPERIRI ȘI REVELAȚII: Ce și-a dat seama elevul despre Biblie prin această activitate? Ce conexiuni neașteptate a făcut?
-
-- CĂLĂTORIA SPIRITUALĂ: Unde se află acum în înțelegerea sa față de unde a început? Ce transformare observi în gândirea lui?
-
-- PROVOCĂRI PENTRU VIITOR: Ce întrebări mari ar trebui să-și pună despre credință și Scriptură? Către ce mister biblic să se îndrepte cu curiozitate?
-
-- CHEMAREA PERSONALĂ: Cum poate transforma aceste cunoștințe în trăire autentică? Ce i-ar schimba perspectiva asupra vieții de zi cu zi?
-
-Fii direct, profund și evită clișeele. Vorbește ca un mentor spiritual care vede potențialul din elev.
+Fii cald, direct și folosește limbajul de profesor care își cunoaște elevii. Maxim 2-3 propoziții per punct.
 
 RĂSPUNDE DOAR CU TEXTUL RAPORTULUI FINAL.`;
 }
