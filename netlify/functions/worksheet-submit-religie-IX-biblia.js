@@ -23,15 +23,17 @@ REZULTAT: ${isCorrect ? 'CORECT' : 'GREȘIT'}
 
 ${
   isCorrect
-    ? 'Confirmă că răspunsul este corect și explică importanța acestei informații pentru înțelegerea Bibliei.'
-    : 'Explică cu răbdare de ce răspunsul corect este cel adevărat și oferă informații care să-l ajute pe elev să înțeleagă.'
+    ? 'Confirmă scurt că răspunsul este corect.'
+    : 'Explică scurt de ce răspunsul corect este cel adevărat.'
 }
+
+Fii concis - maxim 1 propoziție per bullet point.
 
 Răspunde EXACT în formatul:
 FEEDBACK:
-- [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dar numai dacă e cazul]
-- [curiositate amuzantă cu stil casual + emoji]
+- [ceva factual neutru]
+- [explică greșeala sau răspunsul corect]
+- [curiositate amuzantă + emoji]
 
 RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI.`;
 }
