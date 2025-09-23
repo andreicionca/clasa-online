@@ -7,6 +7,8 @@ const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Construiește prompt specific pentru întrebări cu grile
+
+// Construiește prompt specific pentru întrebări cu grile
 function buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig) {
   return `Tu ești profesor de religie. Evaluezi răspunsul unui elev la o întrebare cu variante multiple despre Biblie.
 
@@ -27,8 +29,8 @@ ${
 
 FORMATARE:
 - [ce a făcut bine elevul]
-- [ce ar putea îmbunătăți, dacă e cazul]
-- [încurajare/sfat/întrebare reflexivă]
+- [ce ar putea îmbunătăți, dar numai dacă e cazul]
+- [curiositate amuzantă cu stil casual + emoji]
 
 RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI.`;
 }
@@ -59,7 +61,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
 - [doar dacă sunt probleme reale]
-- [întrebare reflexivă despre importanța acestei perioade]`;
+- [Fun fact: Moise a condus poporul prin deșert 40 de ani. Tu îți pierzi răbdarea dacă aștepți 40 de secunde să se încarce un videoclip pe TikTok. 📱⏳]`;
 
     case 2: // Autor + evenimente
       return `Tu ești profesor de religie. Evaluezi răspunsul despre prima carte a Bibliei.
@@ -71,7 +73,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "un om numit Moise a început să scrie primele texte. Prima carte se numește Facerea (Geneza) și povestește începutul lumii, viața lui Adam și Eva, potopul lui Noe și alegerea lui Avraam."
 
 CRITERII DE PUNCTARE:
-- 1 PUNCT: Moise + minimum 2 evenimente biblice corecte din Geneza
+- 1 PUNKT: Moise + minimum 2 evenimente biblice corecte din Geneza
 - 0.5 PUNCTE: Moise + 1 eveniment SAU doar 2+ evenimente fără autor
 - 0 PUNCTE: Informații lipsă sau greșite
 
@@ -86,7 +88,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursele de informații - text și/sau cunoștințe proprii]
 - [doar dacă lipsesc informații esențiale]
-- [întrebare reflexivă despre semnificația acestor evenimente]`;
+- [Și acum partea amuzantă: Moise a scris primele cărți ale Bibliei acum peste 3000 de ani — fără Google Docs sau AI. Tu te panichezi când ChatGPT e offline 5 minute. 🤖📴😅`;
 
     case 3: // Ultima carte
       return `Tu ești profesor de religie. Evaluezi răspunsul despre ultima carte a Bibliei.
@@ -98,7 +100,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr., arată prin imagini simbolice lupta dintre bine și rău și victoria finală a lui Dumnezeu."
 
 CRITERII DE PUNCTARE:
-- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (95 d.Hr. sau similar)
+- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (95 d.Hr. sau alt an din jurul acestei date)
 - 0.5 PUNCTE: Ioan SAU perioada aproximativ corectă (80-110 d.Hr.)
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -109,7 +111,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
 - [doar dacă sunt probleme reale]
-- [întrebare reflexivă despre semnificația Apocalipsei]`;
+- [Detaliu fascinant: Ioan era în exil pe insula Patmos când a primit viziunile pentru Apocalipsa - fără internet, TV sau Netflix, doar el și revelația divină. Probabil ai deveni foarte creativ și tu în asemenea condiții! 🏝️✨]`;
 
     case 4: // Fragment vechi NT
       return `Tu ești profesor de religie. Evaluezi răspunsul despre cel mai vechi fragment al Noului Testament.
@@ -121,7 +123,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Cel mai vechi fragment al Noului Testament este Papirusul P52, datat în jurul anului 120 d.Hr."
 
 CRITERII DE PUNCTARE:
-- 1 PUNCT: P52/Papirusul P52 + perioada corectă (120 d.Hr. sau similar)
+- 1 PUNKT: P52/Papirusul P52 + perioada corectă (120 d.Hr. sau similar)
 - 0.5 PUNCTE: P52 SAU perioada aproximativ corectă (100-150 d.Hr.)
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -132,7 +134,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
 - [doar dacă sunt probleme reale]
-- [întrebare reflexivă despre importanța manuscriselor vechi]`;
+- [Mind-blowing: Papirusul P52 are mărimea unei cărți poștale și a supraviețuit aproape 2000 de ani - caietul tău abia rezistă până la sfârșitul semestrului! 📜]`;
 
     case 5: // Materiale scriere
       return `Tu ești profesor de religie. Evaluezi răspunsul despre materialele pe care se scriau textele biblice.
@@ -144,7 +146,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Materialul: inițial s-a folosit papirusul, o „hârtie" obținută dintr-o plantă care creștea la Nil. Mai târziu s-a folosit și pergamentul (piele de animal)."
 
 CRITERII DE PUNCTARE:
-- 1 PUNKT: 2 materiale corecte + modurile de obținere (papirus din planta de la Nil, pergament din piele)
+- 1 PUNCT: 2 materiale corecte + modurile de obținere (papirus din planta de la Nil, pergament din piele)
 - 0.5 PUNCTE: 1-2 materiale corecte, dar fără toate detaliile despre obținere
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -155,7 +157,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
 - [doar dacă lipsesc detalii importante]
-- [întrebare reflexivă despre conservarea textelor antice]`;
+- [Ca idee… Papirusul era atât de prețios că se păstra cu grijă sute de ani. Tu nu-ți găsești caietul după două săptămâni. 📚🤯]`;
 
     case 6: // Limbi Biblie
       return `Tu ești profesor de religie. Evaluezi răspunsul despre limbile în care a fost scrisă Biblia.
@@ -167,7 +169,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Ebraica – limba poporului Israel, în care s-a scris majoritatea Vechiului Testament. Aramaica – limbă vorbită în Orientul Apropiat, prezentă în câteva fragmente. Greaca koiné – limba comună a secolului I, în care a fost scris Noul Testament."
 
 CRITERII DE PUNCTARE:
-- 1 PUNCT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca -NT)
+- 1 PUNKT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca-NT)
 - 0.5 PUNCTE: 1-2 limbi corecte, dar fără toate asocierile cu secțiunile
 - 0 PUNCTE: Informații în mare parte greșite
 
@@ -178,30 +180,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
 - [doar dacă lipsesc asocieri importante]
-- [întrebare reflexivă despre diversitatea lingvistică a Bibliei]`;
-
-    case 7: // Număr cărți
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre numărul cărților din Biblie.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"În total, Biblia are 66 de cărți: 39 alcătuiesc Vechiul Testament, 27 alcătuiesc Noul Testament."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: 66 cărți + împărțirea corectă (39 VT + 27 NT)
-- 0.5 PUNCTE: Numărul total corect SAU împărțirea corectă
-- 0 PUNCTE: Informații în mare parte greșite
-
-APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse structura Bibliei.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-FEEDBACK:
-- [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
-- [doar dacă lipsesc detalii despre împărțire]
-- [întrebare reflexivă despre unitatea dintre VT și NT]`;
+- [Cool fact: greaca koiné era ca engleza de azi - limba comună pentru comerț și comunicare în toată Mediterana. Era practic "internetul" lingvistic al antichității! 🌍💬]`;
 
     case 8: // Prima traducere română
       return `Tu ești profesor de religie. Evaluezi răspunsul despre prima traducere completă a Bibliei în română.
@@ -213,7 +192,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Prima traducere completă în română a fost tipărită la București, în 1688."
 
 CRITERII DE PUNCTARE:
-- 1 PUNCT: București + 1688 (ambele informații corecte)
+- 1 PUNKT: București + 1688 (ambele informații corecte)
 - 0.5 PUNCTE: București SAU 1688 (una dintre informații corectă)
 - 0 PUNCTE: Ambele informații greșite
 
@@ -224,7 +203,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază sursa informațiilor - text și/sau cunoștințe proprii]
 - [doar dacă lipsesc detalii importante]
-- [întrebare reflexivă despre importanța traducerilor în limba națională]`;
+- [Remarcabil: prima Biblie românească (1688) valora cât o casă — azi o poți accesa pe telefon gratuit, în câteva secunde. 📖📱]`;
 
     case 9: // Personaj biblic
       return `Tu ești profesor de religie. Evaluezi răspunsul despre un personaj sau povestire biblică.
@@ -233,9 +212,8 @@ FEEDBACK:
 RĂSPUNSUL ELEVULUI: "${answer}"
 
 
-
 CRITERII GENEROASE DE PUNCTARE:
-- 1 PUNCT: Orice personaj sau povestire biblică validă + descriere relevantă (din cunoștințe proprii)
+- 1 PUNKT: Orice personaj sau povestire biblică validă + descriere relevantă (din text, din cunoștințe proprii sau amestec)
 - 0.5 PUNCTE: Personaj biblic corect dar descrierea foarte vagă
 - 0 PUNCTE: Personaj/povestire non-biblică sau informații complet greșite
 
@@ -246,7 +224,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază personajul ales și sursa cunoștințelor]
 - [adaugă o perspectivă interesantă despre personaj dacă e cazul]
-- [întrebare reflexivă despre relevanța personajului pentru elevul de azi]`;
+- [curiositate amuzantă personalizată pentru personajul ales, folosind formule variate precum "E fascinant că...", "Gândește-te că...", "Un detaliu interesant:" + analogie modernă + emoji]`;
 
     default:
       return `Tu ești profesor de religie. Evaluezi răspunsul: "${answer}"
@@ -256,7 +234,7 @@ PUNCTAJ: [0, 0.5, sau 1]
 FEEDBACK:
 - [apreciază efortul]
 - [oferă ghidaj]
-- [încurajare]`;
+- [curiositate amuzantă + emoji]`;
   }
 }
 
