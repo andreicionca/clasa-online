@@ -109,9 +109,11 @@ FEEDBACK:
       return `${baseContext}
 
 CRITERII DE PUNCTARE (Total: 3 puncte):
-- Modalitate corectă protecție timp real: 3p
+- O modalitate corectă protecție timp real: 3p
 
-MODALITĂȚI VALIDE: activarea protecției în timp real din antivirus, Real-time protection ON, Live Guard activat, monitorizare continuă activată
+MODALITĂȚI VALIDE: activarea protecției în timp real prin instalarea și actualizarea unui program antivirus, menținerea firewall-ului activ, evitarea site-urilor și fișierelor suspecte, scanarea stick-urilor USB.
+
+Nota*: Menționarea oricărei forme de protecție în timp real menționate este considerată corectă.
 
 Evaluează răspunsul și acordă punctaj între 0-3.
 

@@ -154,7 +154,7 @@ FRAGMENTUL DIN TEXTUL DAT:
 
 CRITERII DE PUNCTARE:
 - 1 PUNCT: 2 materiale corecte + modurile de obținere (papirus din planta de la Nil, pergament din piele)
-- 0.5 PUNCTE: 1-2 materiale corecte, dar fără toate detaliile despre obținere
+- 0.5 PUNCTE: 1-2 materiale corecte, dar fără toate detaliile despre obținere.
 - 0 PUNCTE: Informații în mare parte greșite
 
 APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse materialele antice de scriere.
