@@ -124,29 +124,29 @@ FRAGMENTUL DIN TEXTUL DAT:
 "Lipsa de respect față de cele sfinte prin vorbe sau fapte se numește blasfemie."
 "Blasfemie – lipsă de respect gravă, prin vorbe sau fapte, față de ceea ce este sfânt."
 
-CRITERII DE PUNCTARE:
-- 2 PUNCTE: Menționează "lipsă de respect față de cele sfinte" SAU "jignire a celor sfinte"
-- 1 PUNCT: Menționează doar "lipsă de respect" fără a specifica "față de cele sfinte"
+CRITERII DE PUNCTARE (STRICTE):
+- 2 PUNCTE: Menționează clar "lipsă de respect" SAU "jignire" ȘI specifică "față de cele sfinte" SAU "față de ce este sfânt" SAU "față de Dumnezeu"
+- 1 PUNCT: Menționează doar "lipsă de respect" sau "ofensă" fără a specifica CE anume (cele sfinte/Dumnezeu)
 - 0 PUNCTE: Definiție complet greșită sau lipsă
 
-IMPORTANT: Esența blasfemiei este lipsa de respect FAȚĂ DE CELE SFINTE, nu doar lipsă generală de respect.
+EXEMPLE DE RĂSPUNSURI CORECTE (2 PUNCTE):
+- "lipsă de respect față de cele sfinte"
+- "jignirea lui Dumnezeu"
+- "ofensă gravă față de religie"
+- "lipsă de respect gravă față de ce este sfânt"
+
+EXEMPLE DE RĂSPUNSURI PARȚIALE (1 PUNCT):
+- "lipsă de respect" (fără a specifica față de ce)
+- "o ofensă gravă" (fără context religios)
+
+IMPORTANT: Dacă răspunsul conține AMBELE elemente (lipsă respect + față de sfânt), acordă 2 PUNCTE complet, chiar dacă formularea nu este perfectă.
 
 Răspunde EXACT:
 PUNCTAJ: [0, 1 sau 2]
 FEEDBACK:
 - [confirmare/corectare]
-- [clarificare definiție]
+- [clarificare definiție dacă e cazul]
 - [Important: În România, art. 29 din Constituție garantează libertatea religioasă și respectul între culte. Blasfemia nu e doar o chestiune religioasă, e și despre respectul civic față de credința altora!]`;
-
-    default:
-      return `Tu ești profesor de religie. Evaluezi răspunsul: "${answer}"
-
-Acordă punctaj echitabil: 0, 1 sau 2 puncte.
-PUNCTAJ: [0, 1 sau 2]
-FEEDBACK:
-- [confirmare/corectare]
-- [explicație]
-- [curiositate + emoji]`;
   }
 }
 
