@@ -1,256 +1,39 @@
 // netlify/functions/worksheet-submit-religie-IX-biblia.js
-// Funcția AI specializată pentru feedback-ul activității "Biblia – Cartea Cărților"
-// Sistem nou cu prompt-uri specifice și fragmente din textul sursă
 
 const OpenAI = require('openai');
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Construiește prompt specific pentru întrebări cu grile
+// ============================================
+// SECȚIUNEA 1: UTILITARE
+// ============================================
 
-// Construiește prompt specific pentru întrebări cu grile
-function buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig) {
-  return `Tu ești profesor de religie. Evaluezi răspunsul unui elev la o întrebare cu variante multiple despre Biblie.
-
-ÎNTREBAREA: "${stepData.question}"
-
-TOATE VARIANTELE:
-${stepData.options.map((opt, i) => `${i}. ${opt}`).join('\n')}
-
-RĂSPUNS CORECT: ${stepData.options[stepData.correct_answer]}
-RĂSPUNS ELEV: ${stepData.options[answer]}
-REZULTAT: ${isCorrect ? 'CORECT' : 'GREȘIT'}
-
-${
-  isCorrect
-    ? 'Confirmă scurt că răspunsul este corect.'
-    : 'Explică scurt de ce răspunsul corect este cel adevărat.'
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .trim();
 }
 
-Fii concis - maxim 1 propoziție per bullet point.
-
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [curiositate amuzantă + emoji]
-
-RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI.`;
-}
-
-// Construiește prompt-uri specifice pentru răspunsuri scurte
-function buildShortPrompt(stepData, student, answer, exerciseConfig) {
-  const stepNumber = extractStepNumber(stepData.question);
-
-  switch (stepNumber) {
-    case 1: // An scriere Geneza
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre când a fost scrisă prima carte a Bibliei.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Prima carte a fost scrisă de Moise în jurul anului 1400 î.Hr. – Facerea (Geneza)."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: Menționează "1400 î.Hr." sau formulări echivalente (ex: secolul XIV î.Hr.)
-- 0.5 PUNCTE: Perioada aproximativ corectă (1500-1300 î.Hr.) sau "Epoca lui Moise"
-- 0 PUNCTE: Informații complet greșite
-
-APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe biblice proprii.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Fun fact: Moise a condus poporul prin deșert 40 de ani. Tu îți pierzi răbdarea dacă aștepți 40 de secunde să se încarce un videoclip pe TikTok. 📱⏳]`;
-
-    case 2: // Autor + evenimente
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre prima carte a Bibliei.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"un om numit Moise a început să scrie primele texte. Prima carte se numește Facerea (Geneza) și povestește începutul lumii, viața lui Adam și Eva, potopul lui Noe și alegerea lui Avraam."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: Moise + minimum 2 evenimente biblice corecte din Geneza
-- 0.5 PUNCTE: Moise + 1 eveniment SAU doar 2+ evenimente fără autor
-- 0 PUNCTE: Informații lipsă sau greșite
-
-EVENIMENTE BIBLICE VALIDE (din text sau cunoștințe proprii):
-- Din text: începutul lumii, viața lui Adam și Eva, potopul lui Noe, alegerea lui Avraam
-- Alte evenimente corecte din Geneza: Căderea în păcat, Turnul Babel, Povestea lui Iosif, Sacrificiul lui Avraam, etc.
-
-APRECIAZĂ dacă elevul citează fidel din text SAU demonstrează cunoștințe biblice proprii.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Și acum partea amuzantă: Moise a scris primele cărți ale Bibliei acum peste 3000 de ani — fără Google Docs sau AI. Tu te panichezi când ChatGPT e offline 5 minute. 🤖📴😅`;
-
-    case 3: // Ultima carte
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre ultima carte a Bibliei.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr., arată prin imagini simbolice lupta dintre bine și rău și victoria finală a lui Dumnezeu."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: Ioan/Apostolul Ioan + perioada corectă (95 d.Hr. sau orice alt an din jurul acestuia)
-- 0.5 PUNCTE: Ioan SAU perioada aproximativ corectă (80-110 d.Hr.)
-- 0 PUNCTE: Informații în mare parte greșite
-
-APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe biblice proprii.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Detaliu fascinant: Ioan era în exil pe insula Patmos când a primit viziunile pentru Apocalipsa - fără internet, TV sau Netflix, doar el și revelația divină. Probabil ai deveni foarte creativ și tu în asemenea condiții! 🏝️✨]`;
-
-    case 4: // Fragment vechi NT
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre cel mai vechi fragment al Noului Testament.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Cel mai vechi fragment al Noului Testament este Papirusul P52, datat în jurul anului 120 d.Hr."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: P52/Papirusul P52 + perioada corectă (120 d.Hr. sau similar)
-- 0.5 PUNCTE: P52 SAU perioada aproximativ corectă (100-150 d.Hr.)
-- 0 PUNCTE: Informații în mare parte greșite
-
-APRECIAZĂ dacă elevul citează din text sau demonstrează cunoștințe despre manuscrise biblice.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Mind-blowing: Papirusul P52 are mărimea unei cărți poștale și a supraviețuit aproape 2000 de ani - caietul tău abia rezistă până la sfârșitul semestrului! 📜]`;
-
-    case 5: // Materiale scriere
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre materialele pe care se scriau textele biblice.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Materialul: inițial s-a folosit papirusul, o „hârtie" obținută dintr-o plantă care creștea la Nil. Mai târziu s-a folosit și pergamentul (piele de animal)."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: 2 materiale corecte + modurile de obținere (papirus din planta de la Nil, pergament din piele)
-- 0.5 PUNCTE: 1-2 materiale corecte, dar fără toate detaliile despre obținere.
-- 0 PUNCTE: Informații în mare parte greșite
-
-APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse materialele antice de scriere.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Ca idee… Papirusul era atât de prețios că se păstra cu grijă sute de ani. Tu nu-ți găsești caietul după două săptămâni. 📚🤯]`;
-
-    case 6: // Limbi Biblie
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre limbile în care a fost scrisă Biblia.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Ebraica – limba poporului Israel, în care s-a scris majoritatea Vechiului Testament. Aramaica – limbă vorbită în Orientul Apropiat, prezentă în câteva fragmente. Greaca koiné – limba comună a secolului I, în care a fost scris Noul Testament."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: 2 limbi corecte + secțiunile corespunzătoare (Ebraica-VT, Greaca-NT)
-- 0.5 PUNCTE: 1-2 limbi corecte, dar fără toate asocierile cu secțiunile
-- 0 PUNCTE: Informații în mare parte greșite
-
-APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse limbile biblice.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Cool fact: greaca koiné era ca engleza de azi - limba comună pentru comerț și comunicare în toată Mediterana. Era practic "internetul" lingvistic al antichității! 🌍💬]`;
-
-    case 8: // Prima traducere română
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre prima traducere completă a Bibliei în română.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Prima traducere completă în română a fost tipărită la București, în 1688."
-
-CRITERII DE PUNCTARE:
-- 1 PUNCT: București + 1688 (ambele informații corecte)
-- 0.5 PUNCTE: București SAU 1688 (una dintre informații corectă)
-- 0 PUNCTE: Ambele informații greșite
-
-APRECIAZĂ dacă elevul citează din text sau cunoaște din alte surse istoria traducerilor biblice.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [Remarcabil: prima Biblie românească (1688) valora cât o casă — azi o poți accesa pe telefon gratuit, în câteva secunde. 📖📱]`;
-
-    case 9: // Personaj biblic
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre un personaj sau povestire biblică.
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-
-CRITERII GENEROASE DE PUNCTARE:
-- 1 PUNCT: Orice personaj sau povestire biblică validă + descriere scurtă (din text, din cunoștințe proprii sau amestec)
-- 0.5 PUNCTE: Personaj biblic corect dar descrierea foarte vagă
-- 0 PUNCTE: Personaj/povestire non-biblică sau informații complet greșite
-
-APRECIAZĂ creativitatea și conexiunea personală cu textele biblice, indiferent de sursa informațiilor.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [curiositate amuzantă personalizată pentru personajul ales, folosind formule variate precum "E fascinant că...", "Gândește-te că...", "Un detaliu interesant:" + analogie modernă + emoji]`;
-
-    default:
-      return `Tu ești profesor de religie. Evaluezi răspunsul: "${answer}"
-
-Acordă punctaj echitabil între 0, 0.5 și 1.
-PUNCTAJ: [0, 0.5, sau 1]
-Răspunde EXACT în formatul:
-FEEDBACK:
-- [ceva factual neutru]
-- [explică greșeala sau/și răspunsul corect]
-- [curiositate amuzantă + emoji]`;
+function preValidateAnswer(studentAnswer, acceptedAnswers, minimumRequired) {
+  if (!acceptedAnswers || !Array.isArray(acceptedAnswers)) {
+    return { matchedCount: 0, matchedAnswers: [], meetsMinimum: false };
   }
+
+  const normalized = normalizeText(studentAnswer);
+
+  const foundMatches = acceptedAnswers.filter((answer) => {
+    return answer.keywords.some((keyword) => normalized.includes(normalizeText(keyword)));
+  });
+
+  return {
+    matchedCount: foundMatches.length,
+    matchedAnswers: foundMatches.map((m) => m.name),
+    meetsMinimum: foundMatches.length >= minimumRequired,
+  };
 }
 
-// Funcție helper pentru identificarea întrebării
 function extractStepNumber(question) {
   if (question.includes('În jurul cărui an')) return 1;
   if (question.includes('autorul primei cărți')) return 2;
@@ -261,46 +44,545 @@ function extractStepNumber(question) {
   if (question.includes('Câte cărți are Biblia')) return 7;
   if (question.includes('prima traducere completă')) return 8;
   if (question.includes('povestire sau un personaj')) return 9;
-  return 1; // fallback
+  return 0;
 }
 
-// Prompt pentru raportul final
-function buildFinalReportPrompt(student, performanceData, allStepsData, exerciseConfig) {
-  const finalScore = performanceData.totalScore;
-  const maxScore = 9;
-  const percentage = (finalScore / maxScore) * 100;
+// ============================================
+// SECȚIUNEA 2: CONFIGURAȚII RĂSPUNSURI AȘTEPTATE
+// ============================================
 
-  return `Tu ești profesor de religie prietenos. Elevul ${student.name} ${
-    student.surname
-  } a terminat activitatea "Biblia – Cartea Cărților".
+const EXPECTED_ANSWERS = {
+  1: {
+    // An scriere Geneza
+    acceptedAnswers: [
+      {
+        keywords: ['1400', '1500', '1300', 'secol XIV', 'secolul 14', 'Moise', 'moise'],
+        name: '1400 î.Hr. sau epoca lui Moise',
+      },
+    ],
+    minimumRequired: 1,
+    context: 'Prima carte a fost scrisă de Moise în jurul anului 1400 î.Hr. – Facerea (Geneza).',
+  },
+  2: {
+    // Autor + evenimente
+    acceptedAnswers: [
+      { keywords: ['Moise', 'moise'], name: 'Moise' },
+      {
+        keywords: [
+          'inceputul lumii',
+          'creatia',
+          'facerea',
+          'geneza',
+          'adam',
+          'eva',
+          'potop',
+          'noe',
+          'avraam',
+          'abraham',
+          'turnul babel',
+          'iosif',
+          'sacrificiu',
+        ],
+        name: 'evenimente biblice din Geneza',
+      },
+    ],
+    minimumRequired: 2, // Moise + min 1 eveniment
+    context:
+      'Moise a scris Geneza care povestește începutul lumii, Adam și Eva, potopul lui Noe și alegerea lui Avraam.',
+  },
+  3: {
+    // Ultima carte
+    acceptedAnswers: [
+      { keywords: ['Ioan', 'ioan', 'apostol', 'Apostolul Ioan'], name: 'Ioan' },
+      { keywords: ['95', '90', '100', 'secol I', 'primul secol'], name: '95 d.Hr.' },
+    ],
+    minimumRequired: 1,
+    context: 'Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr.',
+  },
+  4: {
+    // Fragment vechi NT
+    acceptedAnswers: [
+      { keywords: ['P52', 'p52', 'papirus', 'Papirus P52'], name: 'Papirusul P52' },
+      { keywords: ['120', '100', '150', 'secol II'], name: '120 d.Hr.' },
+    ],
+    minimumRequired: 1,
+    context:
+      'Cel mai vechi fragment al Noului Testament este Papirusul P52, datat în jurul anului 120 d.Hr.',
+  },
+  5: {
+    // Materiale scriere
+    acceptedAnswers: [
+      { keywords: ['papirus', 'papirusul', 'planta', 'nil'], name: 'papirus din planta de la Nil' },
+      {
+        keywords: ['pergament', 'pergamentul', 'piele', 'animal'],
+        name: 'pergament din piele de animal',
+      },
+    ],
+    minimumRequired: 2,
+    context: 'S-a folosit papirusul (din plantă de la Nil) și pergamentul (piele de animal).',
+  },
+  6: {
+    // Limbi Biblie
+    acceptedAnswers: [
+      {
+        keywords: ['ebraica', 'ebraică', 'ebraic', 'evreu', 'vechiul testament', 'VT'],
+        name: 'ebraica pentru Vechiul Testament',
+      },
+      {
+        keywords: ['aramaica', 'aramaică', 'aramaic'],
+        name: 'aramaica',
+      },
+      {
+        keywords: ['greaca', 'greacă', 'grec', 'koine', 'koiné', 'noul testament', 'NT'],
+        name: 'greaca pentru Noul Testament',
+      },
+    ],
+    minimumRequired: 2,
+    context: 'Ebraica (VT), aramaica (fragmente), greaca koiné (NT) - limba comună a secolului I.',
+  },
+  8: {
+    // Prima traducere română
+    acceptedAnswers: [
+      { keywords: ['Bucuresti', 'București', 'bucuresti'], name: 'București' },
+      { keywords: ['1688', '1687', '1689'], name: '1688' },
+    ],
+    minimumRequired: 1,
+    context: 'Prima traducere completă în română a fost tipărită la București, în 1688.',
+  },
+  9: {
+    // Personaj biblic - orice personaj valid
+    acceptedAnswers: null, // Se evaluează manual de AI
+    minimumRequired: 0,
+    context: 'Orice personaj sau povestire biblică validă.',
+  },
+};
 
-PERFORMANȚA: ${finalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
+// ============================================
+// SECȚIUNEA 3: PROMPT-URI PENTRU GRILE
+// ============================================
 
-Oferă un raport final scurt și personal în 4 puncte cu bullet points:
+function buildGrilaPrompt(stepData, answer, isCorrect) {
+  return `Tu ești profesor de religie care corectează o fișă de lucru despre Biblie.
 
-- **Ce ți-a ieșit cel mai bine:** [ce cunoștințe biblice a demonstrat solid]
-- **Merită să aprofundezi:** [aspecte de explorat, formulate pozitiv]
-- **Știai că…?:** [un fapt interesant legat de subiect + emoji]
-- **Pasul următor:** [o sugestie practică și personală pentru continuare]
+ÎNTREBAREA: "${stepData.question}"
 
-Fii cald, direct și folosește limbajul de profesor care își cunoaște elevii. Maxim 2-3 propoziții per punct.
+VARIANTE:
+${stepData.options.map((opt, i) => `${i}. ${opt}`).join('\n')}
 
-RĂSPUNDE DOAR CU TEXTUL RAPORTULUI FINAL.`;
+RĂSPUNS CORECT: ${stepData.options[stepData.correct_answer]}
+RĂSPUNS ELEV: ${stepData.options[answer]}
+REZULTAT: ${isCorrect ? 'CORECT' : 'GREȘIT'}
+
+${
+  isCorrect
+    ? 'Confirmă scurt că răspunsul este corect și oferă un detaliu interesant.'
+    : 'Explică scurt de ce răspunsul corect este cel adevărat.'
 }
 
-// Handler principal
+Oferă o curiozitate interesantă legată de subiect. Fiecare elev merită un feedback personalizat.
+
+Format:
+FEEDBACK:
+- [confirmare/corectare]
+- [explicație]
+- [curiozitate interesantă + emoji]`;
+}
+
+// ============================================
+// SECȚIUNEA 4: PRIMUL EVALUATOR (răspunsuri scurte)
+// ============================================
+
+function buildEvaluator1Prompt(stepData, answer) {
+  const stepNumber = extractStepNumber(stepData.question);
+  const config = EXPECTED_ANSWERS[stepNumber];
+
+  if (!config) {
+    return `Evaluează răspunsul elevului la: "${stepData.question}"
+Răspuns: "${answer}"
+Acordă punctaj între 0-${stepData.points} și oferă feedback.`;
+  }
+
+  // Pentru întrebarea 9 (personaje biblice) - orice personaj e valid
+  if (stepNumber === 9) {
+    return `Tu ești profesor de religie care corectează o fișă de lucru.
+
+ÎNTREBARE: "${stepData.question}"
+RĂSPUNS ELEV: "${answer}"
+
+CONTEXT: ${config.context}
+
+CRITERII:
+- ${stepData.points} punct(e): Orice personaj sau povestire biblică validă + descriere scurtă
+- 0.5 puncte: Personaj biblic corect dar descriere foarte vagă
+- 0 puncte: Personaj/povestire non-biblică sau informații complet greșite
+
+IMPORTANT: Apreciază creativitatea și conexiunea personală cu textele biblice. Acceptă cunoștințe din text DAR și cunoștințe proprii ale elevului.
+
+Format:
+PUNCTAJ: [0, 0.5, sau ${stepData.points}]
+FEEDBACK:
+- [confirmare personaj/povestire]
+- [detaliu despre ce a menționat elevul]
+- [curiozitate interesantă + emoji]`;
+  }
+
+  // Pentru celelalte întrebări cu răspunsuri specifice
+  return `Tu ești profesor de religie care corectează o fișă de lucru.
+
+ÎNTREBARE: "${stepData.question}"
+RĂSPUNS ELEV: "${answer}"
+
+CONTEXT DIN TEXT: ${config.context}
+
+RĂSPUNSURI CORECTE:
+${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
+
+CRITERII:
+- ${config.minimumRequired} sau mai multe răspunsuri corecte = ${stepData.points} punct(e)
+- Parțial corect = 0.5 puncte
+- Lipsă informații = 0 puncte
+
+IMPORTANT: Elevii scriu de pe telefon și pot avea greșeli de scriere. Dacă un cuvânt seamănă evident cu un răspuns corect (diferență de 1-3 litere, litere lipsă sau schimbate, fără diacritice), consideră-l corect. Gândește semantic: "La ce răspuns s-a referit elevul când a scris acest cuvânt?"
+
+Apreciază atât cunoștințele din textul dat CÂT și cunoștințele proprii ale elevului despre Biblie.
+
+Format:
+PUNCTAJ: [0, 0.5, sau ${stepData.points}]
+FEEDBACK:
+- [confirmare/corectare - referă-te specific la ce a scris elevul]
+- [detaliu despre conceptele menționate]
+- [curiozitate interesantă + emoji]`;
+}
+
+// ============================================
+// SECȚIUNEA 5: AL DOILEA EVALUATOR (control)
+// ============================================
+
+function buildEvaluator2Prompt(stepData, answer, evaluator1Result) {
+  const stepNumber = extractStepNumber(stepData.question);
+  const config = EXPECTED_ANSWERS[stepNumber];
+
+  if (!config || stepNumber === 9) {
+    return `Tu ești al doilea evaluator. Verifică dacă punctajul ${evaluator1Result.score}/${stepData.points} este corect pentru răspunsul: "${answer}"
+
+Menține sau corectează punctajul.
+
+Format:
+DECIZIE: [MENTIN/CORECTEZ]
+PUNCTAJ_FINAL: [0, 0.5, sau ${stepData.points}]
+ARGUMENTARE: [explică decizia]`;
+  }
+
+  return `Tu ești al doilea evaluator independent care verifică o corectare.
+
+ÎNTREBARE: "${stepData.question}"
+RĂSPUNS ELEV: "${answer}"
+
+CONTEXT: ${config.context}
+
+RĂSPUNSURI CORECTE:
+${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
+
+EVALUAREA ANTERIOARĂ:
+Punctaj acordat: ${evaluator1Result.score}/${stepData.points} puncte
+Feedback: "${evaluator1Result.feedback}"
+
+SARCINA TA:
+Analizează INDEPENDENT răspunsul elevului. Ignoră evaluarea colegului și judecă singur:
+
+1. Identifică fiecare cuvânt din răspunsul elevului
+2. Pentru fiecare cuvânt: "Seamănă cu vreun răspuns corect?" (tolerează greșeli de scriere)
+3. Numără câte răspunsuri corecte ai identificat
+4. Acordă punctaj conform criteriilor
+
+Dacă identifici ${config.minimumRequired}+ răspunsuri corecte = ${stepData.points} punct(e).
+Dacă colegul a dat punctaj greșit → CORECTEAZĂ fără ezitare.
+
+Format:
+DECIZIE: [MENTIN/CORECTEZ]
+PUNCTAJ_FINAL: [0, 0.5, sau ${stepData.points}]
+ARGUMENTARE: [explică ce răspunsuri ai identificat și de ce menții sau corectezi]`;
+}
+
+// ============================================
+// SECȚIUNEA 6: APELURI CĂTRE AI
+// ============================================
+
+async function callAI(prompt, systemMessage, temperature = 0.6, maxTokens = 300) {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    temperature,
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: prompt },
+    ],
+  });
+
+  return response.choices[0].message.content.trim();
+}
+
+async function evaluateWithFirstEvaluator(stepData, answer, isCorrect) {
+  let prompt, systemMsg;
+
+  if (stepData.type === 'grila') {
+    prompt = buildGrilaPrompt(stepData, answer, isCorrect);
+    systemMsg = 'Tu ești profesor de religie pentru elevi de liceu.';
+  } else {
+    prompt = buildEvaluator1Prompt(stepData, answer);
+    systemMsg =
+      'Tu ești profesor de religie. Fii tolerant cu greșelile de scriere - elevii scriu de pe telefon. Apreciază atât cunoștințele din text cât și cunoștințele proprii.';
+  }
+
+  const aiText = await callAI(prompt, systemMsg, 0.7, 350);
+
+  if (stepData.type === 'grila') {
+    return {
+      score: isCorrect ? 1 : 0,
+      feedback: aiText.replace(/^FEEDBACK:\s*/i, '').trim(),
+    };
+  } else {
+    const punctajMatch = aiText.match(/PUNCTAJ:\s*([0-9.]+)/i);
+    const feedbackMatch = aiText.match(/FEEDBACK:\s*(.+)/is);
+
+    let score = 0;
+    if (punctajMatch) {
+      score = parseFloat(punctajMatch[1]);
+      score = Math.max(0, Math.min(score, stepData.points));
+      score = Math.round(score * 2) / 2; // Rotunjire la 0, 0.5, 1
+    }
+
+    return {
+      score: score,
+      feedback: feedbackMatch ? feedbackMatch[1].trim() : aiText,
+    };
+  }
+}
+
+async function evaluateWithSecondEvaluator(stepData, answer, evaluator1Result) {
+  const prompt = buildEvaluator2Prompt(stepData, answer, evaluator1Result);
+  const systemMsg =
+    'Tu ești al doilea evaluator independent. Analizează răspunsul cu atenție și corectează doar când e necesar.';
+
+  const aiText = await callAI(prompt, systemMsg, 0.4, 350);
+
+  const decizieMatch = aiText.match(/DECIZIE:\s*(MENTIN|CORECTEZ)/i);
+  const punctajMatch = aiText.match(/PUNCTAJ_FINAL:\s*([0-9.]+)/i);
+  const argumentareMatch = aiText.match(/ARGUMENTARE:\s*(.+)/is);
+
+  let punctajFinal = evaluator1Result.score;
+  if (punctajMatch) {
+    punctajFinal = parseFloat(punctajMatch[1]);
+    punctajFinal = Math.max(0, Math.min(punctajFinal, stepData.points));
+    punctajFinal = Math.round(punctajFinal * 2) / 2;
+  }
+
+  return {
+    decizie: decizieMatch ? decizieMatch[1].toUpperCase() : 'MENTIN',
+    punctajFinal: punctajFinal,
+    argumentare: argumentareMatch ? argumentareMatch[1].trim() : aiText,
+  };
+}
+
+// ============================================
+// SECȚIUNEA 7: FLOW PRINCIPAL EVALUARE
+// ============================================
+
+async function evaluateStep(stepData, answer, isCorrect) {
+  // Pre-validare pentru debugging
+  const stepNumber = extractStepNumber(stepData.question);
+  const config = EXPECTED_ANSWERS[stepNumber];
+
+  if (config && config.acceptedAnswers) {
+    const preCheck = preValidateAnswer(answer, config.acceptedAnswers, config.minimumRequired);
+    console.log('[PRE-VALIDARE]', {
+      step: stepNumber,
+      question: stepData.question.substring(0, 50) + '...',
+      answer: answer,
+      matchedCount: preCheck.matchedCount,
+      matchedAnswers: preCheck.matchedAnswers,
+      meetsMinimum: preCheck.meetsMinimum,
+    });
+  }
+
+  // PASUL 1: Primul evaluator corectează
+  const evaluator1Result = await evaluateWithFirstEvaluator(stepData, answer, isCorrect);
+
+  console.log('[EVALUATOR 1]', {
+    step: stepNumber,
+    punctaj: evaluator1Result.score,
+    maxPoints: stepData.points,
+  });
+
+  // PASUL 2: Pentru răspunsuri scurte, al doilea evaluator verifică când nu e punctaj maxim
+  if (stepData.type === 'short' && evaluator1Result.score < stepData.points) {
+    console.log('[EVALUATOR 2] Punctaj sub maxim - trimit la al doilea evaluator:', {
+      step: stepNumber,
+      answer: answer,
+      punctajEvaluator1: evaluator1Result.score,
+      punctajMaxim: stepData.points,
+    });
+
+    const evaluator2Result = await evaluateWithSecondEvaluator(stepData, answer, evaluator1Result);
+
+    if (evaluator2Result.decizie === 'CORECTEZ') {
+      console.log('[CORECTAT] Al doilea evaluator a ajustat punctajul:', {
+        punctajVechi: evaluator1Result.score,
+        punctajNou: evaluator2Result.punctajFinal,
+        argumentare: evaluator2Result.argumentare,
+      });
+
+      return {
+        score: evaluator2Result.punctajFinal,
+        feedback: evaluator1Result.feedback + '\n\n[Punctaj ajustat după reevaluare]',
+        evaluatedBy: 'evaluator2',
+        correctionReason: evaluator2Result.argumentare,
+      };
+    } else {
+      console.log('[MENȚINUT] Al doilea evaluator a confirmat punctajul inițial');
+
+      return {
+        score: evaluator1Result.score,
+        feedback: evaluator1Result.feedback,
+        evaluatedBy: 'evaluator1_confirmed',
+      };
+    }
+  }
+
+  // Grilele sau punctaj maxim la short
+  return {
+    score: evaluator1Result.score,
+    feedback: evaluator1Result.feedback,
+    evaluatedBy: 'evaluator1',
+  };
+}
+
+// ============================================
+// SECȚIUNEA 8: RAPORT FINAL
+// ============================================
+
+function buildFinalReportPrompt(student, performanceData) {
+  const { totalScore, maxScore } = performanceData;
+  const percentage = (totalScore / maxScore) * 100;
+
+  return `Tu ești profesor de religie care cunoaște elevii personalizat.
+
+Elevul: ${student.name} ${student.surname}
+Performanță: ${totalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
+
+Activitate: "Biblia – Cartea Cărților"
+
+Creează un raport personalizat în 4 puncte:
+
+- **Ce ți-a ieșit cel mai bine:** [punctele forte ale elevului despre cunoștințele biblice]
+- **Merită să aprofundezi:** [sugestii concrete și pozitive]
+- **Știai că…?:** [fapt interesant legat de Biblie + emoji]
+- **Pasul următor:** [sugestie practică pentru continuare]
+
+Maxim 2-3 propoziții per punct. Fii direct, cald și specific, evită clișeele.`;
+}
+
+async function generateFinalReport(student, performanceData) {
+  const prompt = buildFinalReportPrompt(student, performanceData);
+  return await callAI(
+    prompt,
+    'Tu ești profesor de religie care oferă feedback personalizat fiecărui elev.',
+    0.7,
+    400
+  );
+}
+
+// ============================================
+// SECȚIUNEA 9: HANDLERS PENTRU REQUESTS
+// ============================================
+
+async function handleStepFeedback(requestData) {
+  const { stepData, answer, student, isCorrect } = requestData;
+
+  if (!stepData || answer === undefined || !student) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Date incomplete' }),
+    };
+  }
+
+  try {
+    const result = await evaluateStep(stepData, answer, isCorrect);
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: true,
+        score: result.score,
+        feedback: result.feedback,
+        maxPoints: stepData.points,
+        evaluatedBy: result.evaluatedBy,
+        correctionReason: result.correctionReason,
+        aiGenerated: true,
+      }),
+    };
+  } catch (error) {
+    console.error('Eroare evaluare:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: false,
+        error: 'Sistemul de evaluare AI este temporar indisponibil.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      }),
+    };
+  }
+}
+
+async function handleFinalReport(requestData) {
+  const { student, performanceData } = requestData;
+
+  if (!student || !performanceData) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Date incomplete' }),
+    };
+  }
+
+  try {
+    const finalReport = await generateFinalReport(student, performanceData);
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: true,
+        finalReport,
+        aiGenerated: true,
+      }),
+    };
+  } catch (error) {
+    console.error('Eroare raport final:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: false,
+        error: 'Raportul final nu poate fi generat momentan.',
+      }),
+    };
+  }
+}
+
+// ============================================
+// SECȚIUNEA 10: EXPORT HANDLER PRINCIPAL
+// ============================================
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Method not allowed',
-      }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Method not allowed' }),
     };
   }
 
@@ -310,14 +592,8 @@ exports.handler = async (event) => {
   } catch (parseError) {
     return {
       statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Date JSON invalide',
-      }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Date JSON invalide' }),
     };
   }
 
@@ -330,236 +606,8 @@ exports.handler = async (event) => {
   } else {
     return {
       statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Tip de cerere invalid',
-      }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Tip de cerere invalid' }),
     };
   }
 };
-
-// Gestionează feedback pentru o sarcină individuală
-async function handleStepFeedback(requestData) {
-  const { stepData, answer, student, isCorrect, exerciseConfig } = requestData;
-
-  if (!stepData || answer === undefined || answer === null || !student || !exerciseConfig) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Date incomplete pentru procesarea AI',
-      }),
-    };
-  }
-
-  try {
-    let feedback = '';
-    let score = 0;
-
-    if (stepData.type === 'grila') {
-      score = isCorrect ? 1 : 0;
-
-      const prompt = buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig);
-
-      const aiResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        max_tokens: 250,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Tu ești profesor de religie pentru clasa a IX-a. Oferă feedback educativ și spiritual.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      });
-
-      feedback = aiResponse.choices?.[0]?.message?.content?.trim();
-
-      if (!feedback) {
-        throw new Error('OpenAI nu a returnat feedback valid pentru grila');
-      }
-    } else if (stepData.type === 'short') {
-      const prompt = buildShortPrompt(stepData, student, answer, exerciseConfig);
-
-      const aiResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0.6,
-        max_tokens: 350,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Tu ești profesor de religie pentru clasa a IX-a. Apreciază atât cunoștințele din text cât și cele proprii ale elevului.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      });
-
-      const aiText = aiResponse.choices?.[0]?.message?.content?.trim();
-
-      if (!aiText) {
-        throw new Error('OpenAI nu a returnat răspuns valid');
-      }
-
-      const punctajMatch = aiText.match(/PUNCTAJ:\s*([0-9.]+)/i);
-      const feedbackMatch = aiText.match(/FEEDBACK:\s*(.+)/is);
-
-      if (punctajMatch) {
-        score = parseFloat(punctajMatch[1]);
-        score = Math.max(0, Math.min(score, 1));
-        score = Math.round(score * 2) / 2;
-      } else {
-        throw new Error('AI nu a returnat punctaj în formatul așteptat');
-      }
-
-      if (feedbackMatch) {
-        feedback = feedbackMatch[1].trim();
-      } else {
-        throw new Error('AI nu a returnat feedback în formatul așteptat');
-      }
-    } else {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({
-          success: false,
-          error: `Tip de întrebare nesuportat: ${stepData.type}`,
-        }),
-      };
-    }
-
-    if (!feedback || feedback.length < 10) {
-      throw new Error('Feedback AI prea scurt sau invalid');
-    }
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: true,
-        feedback: feedback,
-        score: score,
-        maxPoints: 1,
-        aiGenerated: true,
-      }),
-    };
-  } catch (error) {
-    console.error('Eroare AI feedback:', {
-      error: error.message,
-      stepType: stepData?.type,
-      student: student?.name,
-    });
-
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Sistemul de feedback AI este temporar indisponibil.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      }),
-    };
-  }
-}
-
-// Gestionează raportul final
-async function handleFinalReport(requestData) {
-  const { student, performanceData, allStepsData, exerciseConfig } = requestData;
-
-  if (!student || !performanceData || !allStepsData) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Date incomplete pentru raportul final',
-      }),
-    };
-  }
-
-  try {
-    const prompt = buildFinalReportPrompt(student, performanceData, allStepsData, exerciseConfig);
-
-    const aiResponse = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.6,
-      max_tokens: 400,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Tu ești profesor de religie pentru clasa a IX-a. Oferă rapoarte finale inspirante și provocatoare.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
-
-    const finalReport = aiResponse.choices?.[0]?.message?.content?.trim();
-
-    if (!finalReport || finalReport.length < 50) {
-      throw new Error('OpenAI nu a returnat raport final valid');
-    }
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: true,
-        finalReport: finalReport,
-        aiGenerated: true,
-      }),
-    };
-  } catch (error) {
-    console.error('Eroare raport final AI:', {
-      error: error.message,
-      student: student?.name,
-    });
-
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Sistemul de raport final AI este temporar indisponibil.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      }),
-    };
-  }
-}
