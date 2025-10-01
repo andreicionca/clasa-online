@@ -40,7 +40,6 @@ function preValidateAnswer(studentAnswer, acceptedAnswers, minimumRequired) {
 
 const EXPECTED_ANSWERS = {
   2: {
-    // Muntele rugului aprins
     acceptedAnswers: [
       { keywords: ['Horeb', 'horeb'], name: 'Horeb' },
       { keywords: ['Sinai', 'sinai'], name: 'Sinai' },
@@ -48,13 +47,14 @@ const EXPECTED_ANSWERS = {
     minimumRequired: 1,
   },
   5: {
-    // Sărbători de pelerinaj
     acceptedAnswers: [
       { keywords: ['Paste', 'Pesah', 'Pasti', 'paste', 'pesah', 'pasti'], name: 'Paștele' },
       {
         keywords: [
           'Cincizecimea',
           'cincizecimea',
+          'cincizezime',
+          'cincizezimea',
           'Shavuot',
           'shavuot',
           'Savuot',
@@ -85,7 +85,6 @@ const EXPECTED_ANSWERS = {
     minimumRequired: 2,
   },
   7: {
-    // Orașul Templului
     acceptedAnswers: [
       {
         keywords: ['Ierusalim', 'ierusalim', 'Ierusalem', 'ierusalem', 'Jerusalem', 'jerusalem'],
@@ -95,7 +94,6 @@ const EXPECTED_ANSWERS = {
     minimumRequired: 1,
   },
   9: {
-    // Blasfemie
     acceptedAnswers: [
       {
         keywords: ['lipsa de respect', 'lipsă', 'jignire', 'jignirea', 'ofensa', 'ofensă'],
@@ -132,7 +130,7 @@ ${
     : 'Explică scurt de ce răspunsul corect este cel adevărat.'
 }
 
-La al treilea bullet point, oferă o curiozitate interesantă legată de subiect. Fiecare elev merită un feedback personalizat.
+Oferă o curiozitate interesantă legată de subiect. Fiecare elev merită un feedback personalizat.
 
 Format:
 FEEDBACK:
@@ -166,7 +164,7 @@ CRITERII:
 - ${config.minimumRequired} sau mai multe răspunsuri corecte = ${stepData.points} puncte
 - Mai puțin = 0 puncte
 
-Elevii scriu de pe telefon și pot avea greșeli de scriere. Evaluează esența răspunsului.
+IMPORTANT: Elevii scriu de pe telefon și pot avea greșeli de scriere. Dacă un cuvânt seamănă evident cu un răspuns corect (diferență de 1-3 litere, litere lipsă sau schimbate, fără diacritice), consideră-l corect. Gândește: "La ce răspuns s-a referit elevul când a scris acest cuvânt?"
 
 Format:
 PUNCTAJ: [0 sau ${stepData.points}]
@@ -183,7 +181,7 @@ FEEDBACK:
 function buildEvaluator2Prompt(stepData, answer, evaluator1Result) {
   const config = EXPECTED_ANSWERS[stepData.step];
 
-  return `Tu ești al doilea evaluator, care verifică independent o corectare făcută de un coleg.
+  return `Tu ești al doilea evaluator independent care verifică o corectare.
 
 ÎNTREBARE: "${stepData.question}"
 RĂSPUNS ELEV: "${answer}"
@@ -191,25 +189,27 @@ RĂSPUNS ELEV: "${answer}"
 RĂSPUNSURI CORECTE:
 ${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
-EVALUAREA COLEGULUI:
+EVALUAREA ANTERIOARĂ (de la colegul tău):
 Punctaj acordat: ${evaluator1Result.score}/${stepData.points} puncte
-Argumentație: "${evaluator1Result.feedback}"
+Feedback: "${evaluator1Result.feedback}"
 
 SARCINA TA:
-Analizează independent răspunsul elevului. Nu te ghida după evaluarea colegului - gândește singur:
+Analizează INDEPENDENT răspunsul elevului. Ignoră evaluarea colegului și judecă singur:
 
-1. Câte răspunsuri corecte a menționat elevul? (fii tolerant cu greșeli de scriere)
-2. Evaluarea colegului a fost corectă sau a greșit?
-3. Ce punctaj ar trebui acordat corect?
+1. Identifică fiecare cuvânt din răspunsul elevului
+2. Pentru fiecare cuvânt, întreabă-te: "Seamănă cu vreun răspuns corect?" (tolerează litere lipsă, schimbate, fără diacritice)
+3. Numără câte răspunsuri corecte ai identificat
+4. Acordă punctaj conform criteriilor
 
-Dacă elevul a menționat ${config.minimumRequired} răspunsuri corecte = ${
+Dacă identifici ${config.minimumRequired} sau mai multe răspunsuri corecte = ${
     stepData.points
-  } puncte, chiar dacă au greșeli de scriere.
+  } puncte.
+Dacă colegul a dat punctaj greșit → CORECTEAZĂ.
 
 Format:
 DECIZIE: [MENTIN/CORECTEZ]
 PUNCTAJ_FINAL: [0 sau ${stepData.points}]
-ARGUMENTARE: [de ce menții sau corectezi evaluarea - explică clar]`;
+ARGUMENTARE: [explică ce răspunsuri ai identificat și de ce menții sau corectezi]`;
 }
 
 // ============================================
@@ -239,12 +239,11 @@ async function evaluateWithFirstEvaluator(stepData, answer, isCorrect) {
   } else {
     prompt = buildEvaluator1Prompt(stepData, answer);
     systemMsg =
-      'Tu ești profesor de religie. Fii rezonabil cu elevii care scriu de pe telefon și pot avea greșeli de tipar.';
+      'Tu ești profesor de religie. Fii tolerant cu greșelile de scriere - elevii scriu de pe telefon.';
   }
 
   const aiText = await callAI(prompt, systemMsg, 0.7, 350);
 
-  // Parse răspuns
   if (stepData.type === 'grila') {
     return {
       score: isCorrect ? 2 : 0,
@@ -264,9 +263,9 @@ async function evaluateWithFirstEvaluator(stepData, answer, isCorrect) {
 async function evaluateWithSecondEvaluator(stepData, answer, evaluator1Result) {
   const prompt = buildEvaluator2Prompt(stepData, answer, evaluator1Result);
   const systemMsg =
-    'Tu ești al doilea evaluator independent. Corectezi doar când colegul tău a greșit clar.';
+    'Tu ești al doilea evaluator independent. Analizează răspunsul cu atenție și corectează doar când e necesar.';
 
-  const aiText = await callAI(prompt, systemMsg, 0.4, 300);
+  const aiText = await callAI(prompt, systemMsg, 0.4, 350);
 
   const decizieMatch = aiText.match(/DECIZIE:\s*(MENTIN|CORECTEZ)/i);
   const punctajMatch = aiText.match(/PUNCTAJ_FINAL:\s*([0-9]+)/i);
@@ -308,17 +307,25 @@ async function evaluateStep(stepData, answer, isCorrect) {
       return {
         score: evaluator2Result.punctajFinal,
         feedback: evaluator1Result.feedback + '\n\n[Punctaj ajustat după reevaluare]',
-        corrected: true,
+        evaluatedBy: 'evaluator2', // Flag pentru frontend
+        correctionReason: evaluator2Result.argumentare,
       };
     } else {
       console.log('[MENȚINUT] Al doilea evaluator a confirmat punctajul inițial');
+
+      return {
+        score: evaluator1Result.score,
+        feedback: evaluator1Result.feedback,
+        evaluatedBy: 'evaluator1_confirmed', // Flag că a fost verificat
+      };
     }
   }
 
+  // Grilele sau punctaj maxim la short
   return {
     score: evaluator1Result.score,
     feedback: evaluator1Result.feedback,
-    corrected: false,
+    evaluatedBy: 'evaluator1', // Flag pentru frontend
   };
 }
 
@@ -380,7 +387,8 @@ async function handleStepFeedback(requestData) {
         score: result.score,
         feedback: result.feedback,
         maxPoints: stepData.points,
-        corrected: result.corrected,
+        evaluatedBy: result.evaluatedBy, // Indică cine a evaluat
+        correctionReason: result.correctionReason, // Doar dacă a fost corectat
         aiGenerated: true,
       }),
     };
