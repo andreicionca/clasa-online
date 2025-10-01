@@ -1,192 +1,415 @@
 // netlify/functions/worksheet-submit-religie-IX-respectul-fata-de-cele-sfinte.js
-// Funcția AI specializată pentru feedback-ul activității "Respectul față de cele sfinte"
 
 const OpenAI = require('openai');
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Construiește prompt specific pentru întrebări cu grile
-function buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig) {
-  return `Tu ești profesor de religie. Evaluezi răspunsul unui elev la o întrebare cu variante multiple despre sfințenie și respectul față de cele sfinte.
+// ============================================
+// SECȚIUNEA 1: UTILITARE
+// ============================================
+
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .trim();
+}
+
+function preValidateAnswer(studentAnswer, acceptedAnswers, minimumRequired) {
+  if (!acceptedAnswers || !Array.isArray(acceptedAnswers)) {
+    return { matchedCount: 0, matchedAnswers: [], meetsMinimum: false };
+  }
+
+  const normalized = normalizeText(studentAnswer);
+
+  const foundMatches = acceptedAnswers.filter((answer) => {
+    return answer.keywords.some((keyword) => normalized.includes(normalizeText(keyword)));
+  });
+
+  return {
+    matchedCount: foundMatches.length,
+    matchedAnswers: foundMatches.map((m) => m.name),
+    meetsMinimum: foundMatches.length >= minimumRequired,
+  };
+}
+
+// ============================================
+// SECȚIUNEA 2: CONFIGURAȚII RĂSPUNSURI AȘTEPTATE
+// ============================================
+
+const EXPECTED_ANSWERS = {
+  2: {
+    // Muntele rugului aprins
+    acceptedAnswers: [
+      { keywords: ['Horeb', 'horeb'], name: 'Horeb' },
+      { keywords: ['Sinai', 'sinai'], name: 'Sinai' },
+    ],
+    minimumRequired: 1,
+    funFact:
+      'Muntele Sinai se află în Peninsula Sinai - o zonă pustie unde Moise păștea oile. Azi e o destinație turistică cu mănăstiri vechi de secole. Tu te plângi când mergi cu autobuzul 30 de minute la școală!',
+  },
+  5: {
+    // Sărbători de pelerinaj
+    acceptedAnswers: [
+      { keywords: ['Paste', 'Pesah', 'Pasti', 'paste', 'pesah'], name: 'Paștele' },
+      {
+        keywords: [
+          'Cincizecimea',
+          'Shavuot',
+          'Savuot',
+          'Șavuot',
+          'Saptaman',
+          'Rusalii',
+          'cincizecimea',
+          'shavuot',
+        ],
+        name: 'Cincizecimea',
+      },
+      {
+        keywords: ['Corturilor', 'Sucot', 'Sukkot', 'Cort', 'corturilor', 'sucot'],
+        name: 'Sărbătoarea Corturilor',
+      },
+    ],
+    minimumRequired: 2,
+    funFact:
+      'La aceste trei sărbători, TOȚI evreii din întreaga țară veneau la Ierusalim - era ca un mega-festival religios de câteva ori pe an. Imaginează-ți orașul plin cu zeci de mii de pelerini!',
+  },
+  7: {
+    // Orașul Templului
+    acceptedAnswers: [
+      { keywords: ['Ierusalim', 'Ierusalem', 'Jerusalem', 'ierusalim'], name: 'Ierusalim' },
+    ],
+    minimumRequired: 1,
+    funFact:
+      'Ierusalimul era și rămâne oraș sfânt pentru TREI religii: iudaism, creștinism și islam. E singurul oraș de pe pământ cu trei capitale spirituale în unul singur!',
+  },
+  9: {
+    // Blasfemie
+    acceptedAnswers: [
+      {
+        keywords: ['lipsa de respect', 'lipsă', 'jignire', 'ofensa', 'ofensă'],
+        name: 'lipsă de respect',
+      },
+      { keywords: ['sfinte', 'sfânt', 'Dumnezeu', 'religie'], name: 'față de cele sfinte' },
+    ],
+    minimumRequired: 2,
+    funFact:
+      'În România, art. 29 din Constituție garantează libertatea religioasă și respectul între culte. Blasfemia nu e doar o chestiune religioasă, e și despre respectul civic față de credința altora!',
+  },
+};
+
+// ============================================
+// SECȚIUNEA 3: PROMPT-URI AI1 (EVALUATOR)
+// ============================================
+
+function buildGrilaPrompt(stepData, answer, isCorrect) {
+  return `Tu ești profesor de religie care corectează o fișă de lucru.
 
 ÎNTREBAREA: "${stepData.question}"
 
-TOATE VARIANTELE:
+VARIANTE:
 ${stepData.options.map((opt, i) => `${i}. ${opt}`).join('\n')}
 
 RĂSPUNS CORECT: ${stepData.options[stepData.correct_answer]}
 RĂSPUNS ELEV: ${stepData.options[answer]}
-REZULTAT: ${isCorrect ? 'CORECT' : 'GREȘIT'}
+REZULTAT: ${isCorrect ? 'CORECT ✓' : 'GREȘIT ✗'}
 
 ${
   isCorrect
-    ? 'Confirmă scurt că răspunsul este corect.'
+    ? 'Confirmă scurt că răspunsul este corect și oferă un detaliu interesant.'
     : 'Explică scurt de ce răspunsul corect este cel adevărat.'
 }
 
-Fii concis - maxim 1 propoziție per bullet point.
-
-Răspunde EXACT în formatul:
+Format:
 FEEDBACK:
-- [confirmare/corectare factuală]
-- [explicație scurtă]
-- [curiositate amuzantă + emoji]
-
-RĂSPUNDE DOAR CU TEXTUL FEEDBACK-ULUI.`;
+- [confirmare/corectare]
+- [explicație]
+- [fun fact cu emoji]`;
 }
 
-// Construiește prompt-uri specifice pentru răspunsuri scurte
-function buildShortPrompt(stepData, student, answer, exerciseConfig) {
-  const stepNumber = stepData.step;
+function buildShortPrompt(stepData, answer, preValidation) {
+  const config = EXPECTED_ANSWERS[stepData.step];
 
-  switch (stepNumber) {
-    case 2: // Muntele rugului aprins
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre muntele unde Moise a văzut rugul aprins.
+  if (!config) {
+    return `Evaluează răspunsul elevului la: "${stepData.question}"
+Răspuns: "${answer}"
+Acordă punctaj între 0-2 și oferă feedback constructiv.`;
+  }
 
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
+  return `Tu ești profesor de religie care corectează o fișă de lucru.
 
-FRAGMENTUL DIN TEXTUL DAT:
-"pe când evreii erau sclavi în Egipt, un om pe nume Moise păștea oile socrului său pe lângă Muntele Horeb / Sinai (în Peninsula Sinai, azi Egipt)"
+ÎNTREBARE: "${stepData.question}"
+RĂSPUNS ELEV: "${answer}"
 
-CRITERII DE PUNCTARE:
-- 2 PUNCTE: "Horeb" SAU "Sinai" SAU "Horeb/Sinai" (oricare dintre aceste variante)
-- 0 PUNCTE: Orice alt munte sau răspuns greșit
+PRE-ANALIZĂ: Identificat ${preValidation.matchedCount}/${
+    config.minimumRequired
+  } răspunsuri corecte: ${preValidation.matchedAnswers.join(', ') || 'niciunul'}
 
-IMPORTANT: Acceptă și variații minore de scriere (ex: "muntele Sinai", "Horeb", "pe Sinai").
+RĂSPUNSURI ACCEPTATE:
+${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
-Răspunde EXACT:
+CRITERII:
+- ${config.minimumRequired}+ răspunsuri corecte = 2 puncte
+- Mai puțin = 0 puncte
+
+IMPORTANT: Fii generos cu variații ortografice (elevul scrie de pe telefon).
+
+Format:
 PUNCTAJ: [0 sau 2]
 FEEDBACK:
 - [confirmare/corectare]
-- [detaliu din text]
-- [Fun fact: Muntele Sinai se află în Peninsula Sinai - o zonă pustie unde Moise păștea oile. Azi e o destinație turistică cu mănăstiri vechi de secole. Tu te plângi când mergi cu autobuzul 30 de minute la școală!]`;
+- [detaliu]
+- [${config.funFact}]`;
+}
 
-    case 5: // Două sărbători de pelerinaj
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre sărbătorile evreiești de pelerinaj.
+// ============================================
+// SECȚIUNEA 4: PROMPT AI2 (VERIFICATOR)
+// ============================================
 
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
+function buildVerificationPrompt(stepData, answer, ai1Result, preValidation) {
+  const config = EXPECTED_ANSWERS[stepData.step];
 
-FRAGMENTUL DIN TEXTUL DAT:
-"cele trei mari sărbători de pelerinaj la Ierusalim – Paștele (Pesah), Cincizecimea (Shavuot) și Sărbătoarea Corturilor (Sucot)"
+  return `Verificator AI. Detectează DOAR erori flagrante.
 
-CRITERII DE PUNCTARE:
-- 2 PUNCTE: Menționează CORECT cel puțin 2 sărbători din cele 3
-- 0 PUNCTE: Mai puțin de 2 sărbători corecte
+RĂSPUNS ELEV: "${answer}"
+EVALUARE AI1: ${ai1Result.score}/${stepData.points} puncte
+PRE-VALIDARE: ${preValidation.matchedCount}/${config?.minimumRequired || 0} răspunsuri găsite
 
-SĂRBĂTORI VALIDE (acceptă orice variantă):
-- Paștele / Pesah / Pasti
-- Cincizecimea / Shavuot / Rusalii
-- Sărbătoarea Corturilor / Sucot / Corturilor
+VERIFICĂ:
+${
+  preValidation.meetsMinimum && ai1Result.score === 0
+    ? '⚠️ SUSPECT: Pre-validarea găsește răspunsuri corecte dar AI1 a dat 0 puncte'
+    : '✓ Pare OK'
+}
 
-IMPORTANT:
-- Verifică cu atenție dacă elevul menționează DOUĂ sărbători diferite
-- Acceptă variații de scriere
-- NU accepta sărbători care nu sunt de pelerinaj (ex: Hanuka, Yom Kippur)
+ACȚIUNE: [MENTINE/CORECTEAZA]
+PUNCTAJ_FINAL: [0-${stepData.points}]
+MOTIV: [doar dacă corectezi]`;
+}
 
-Răspunde EXACT:
-PUNCTAJ: [0 sau 2]
-FEEDBACK:
-- [confirmare/corectare]
-- [detaliu despre sărbătorile menționate]
-- [Cool fact: La aceste trei sărbători, TOȚI evreii din întreaga țară veneau la Ierusalim - era ca un mega-festival religios de câteva ori pe an. Imaginează-ți orașul plin cu zeci de mii de pelerini!]`;
+// ============================================
+// SECȚIUNEA 5: APELURI AI
+// ============================================
 
-    case 7: // Orașul Templului
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre orașul unde se afla Templul.
+async function callAI(prompt, systemMessage, temperature = 0.6, maxTokens = 300) {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    temperature,
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: prompt },
+    ],
+  });
 
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
+  return response.choices[0].message.content.trim();
+}
 
-FRAGMENTUL DIN TEXTUL DAT:
-"Era sărbătoarea Paștelui, iar Ierusalimul fremăta de pelerini veniți din toate colțurile țării. Templul – considerat de evrei „locul cel mai sfânt de pe pământ""
+async function evaluateWithAI1(stepData, answer, isCorrect, preValidation) {
+  let prompt, systemMsg;
 
-CRITERII DE PUNCTARE:
-- 2 PUNCTE: "Ierusalim" (acceptă și variații de scriere: Ierusalem, Jerusalem)
-- 0 PUNCTE: Orice alt oraș
+  if (stepData.type === 'grila') {
+    prompt = buildGrilaPrompt(stepData, answer, isCorrect);
+    systemMsg = 'Tu ești profesor de religie pentru elevi de liceu.';
+  } else {
+    prompt = buildShortPrompt(stepData, answer, preValidation);
+    systemMsg =
+      'Tu ești profesor de religie. Fii generos cu elevii care scriu de pe telefon și pot avea greșeli de tipar. Ai in vedere ca unii scriu cu diacritice iar alții nu.';
+  }
 
-IMPORTANT: Acceptă și greșeli minore de scriere dacă este clar că se referă la Ierusalim.
+  const aiText = await callAI(prompt, systemMsg, 0.7);
 
-Răspunde EXACT:
-PUNCTAJ: [0 sau 2]
-FEEDBACK:
-- [confirmare/corectare]
-- [detaliu despre Ierusalim]
-- [Detaliu fascinant: Ierusalimul era și rămâne oraș sfânt pentru TREI religii: iudaism, creștinism și islam. E singurul oraș de pe pământ cu trei capitale spirituale în unul singur!]`;
+  // Parse
+  if (stepData.type === 'grila') {
+    return {
+      score: isCorrect ? 2 : 0,
+      feedback: aiText.replace(/^FEEDBACK:\s*/i, '').trim(),
+    };
+  } else {
+    const punctajMatch = aiText.match(/PUNCTAJ:\s*([0-9]+)/i);
+    const feedbackMatch = aiText.match(/FEEDBACK:\s*(.+)/is);
 
-    case 9: // Blasfemie
-      return `Tu ești profesor de religie. Evaluezi răspunsul despre semnificația cuvântului "blasfemie".
-
-ÎNTREBAREA: "${stepData.question}"
-RĂSPUNSUL ELEVULUI: "${answer}"
-
-FRAGMENTUL DIN TEXTUL DAT:
-"Lipsa de respect față de cele sfinte prin vorbe sau fapte se numește blasfemie."
-"Blasfemie – lipsă de respect gravă, prin vorbe sau fapte, față de ceea ce este sfânt."
-
-CRITERII DE PUNCTARE (STRICTE):
-- 2 PUNCTE: Menționează clar "lipsă de respect" SAU "jignire" ȘI specifică "față de cele sfinte" SAU "față de ce este sfânt" SAU "față de Dumnezeu"
-- 1 PUNCT: Menționează doar "lipsă de respect" sau "ofensă" fără a specifica CE anume (cele sfinte/Dumnezeu)
-- 0 PUNCTE: Definiție complet greșită sau lipsă
-
-EXEMPLE DE RĂSPUNSURI CORECTE (2 PUNCTE):
-- "lipsă de respect față de cele sfinte"
-- "jignirea lui Dumnezeu"
-- "ofensă gravă față de religie"
-- "lipsă de respect gravă față de ce este sfânt"
-
-EXEMPLE DE RĂSPUNSURI PARȚIALE (1 PUNCT):
-- "lipsă de respect" (fără a specifica față de ce)
-- "o ofensă gravă" (fără context religios)
-
-IMPORTANT: Dacă răspunsul conține AMBELE elemente (lipsă respect + față de sfânt), acordă 2 PUNCTE complet, chiar dacă formularea nu este perfectă.
-
-Răspunde EXACT:
-PUNCTAJ: [0, 1 sau 2]
-FEEDBACK:
-- [confirmare/corectare]
-- [clarificare definiție dacă e cazul]
-- [Important: În România, art. 29 din Constituție garantează libertatea religioasă și respectul între culte. Blasfemia nu e doar o chestiune religioasă, e și despre respectul civic față de credința altora!]`;
+    return {
+      score: punctajMatch ? parseInt(punctajMatch[1]) : 0,
+      feedback: feedbackMatch ? feedbackMatch[1].trim() : aiText,
+    };
   }
 }
 
-// Prompt pentru raportul final
-function buildFinalReportPrompt(student, performanceData, allStepsData, exerciseConfig) {
-  const finalScore = performanceData.totalScore;
-  const maxScore = 18;
-  const percentage = (finalScore / maxScore) * 100;
+async function verifyWithAI2(stepData, answer, ai1Result, preValidation) {
+  const prompt = buildVerificationPrompt(stepData, answer, ai1Result, preValidation);
+  const aiText = await callAI(prompt, 'Tu ești verificator strict.', 0.3, 200);
 
-  return `Tu ești profesor de religie prietenos. Elevul ${student.name} ${
-    student.surname
-  } a terminat activitatea "Respectul față de cele sfinte".
+  const actionMatch = aiText.match(/ACTIUNE:\s*(MENTINE|CORECTEAZA)/i);
+  const punctajMatch = aiText.match(/PUNCTAJ_FINAL:\s*([0-9]+)/i);
 
-PERFORMANȚA: ${finalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
-
-Oferă un raport final scurt și personal în 4 puncte cu bullet points:
-
-- **Ce ți-a ieșit cel mai bine:** [ce cunoștințe despre sfințenie a demonstrat solid]
-- **Merită să aprofundezi:** [aspecte de explorat, formulate pozitiv]
-- **Știai că…?:** [un fapt interesant legat de subiect + emoji]
-- **Pasul următor:** [o sugestie practică și personală pentru continuare]
-
-Fii cald, direct și folosește limbajul de profesor care își cunoaște elevii. Maxim 2-3 propoziții per punct.
-
-RĂSPUNDE DOAR CU TEXTUL RAPORTULUI FINAL.`;
+  return {
+    action: actionMatch ? actionMatch[1].toUpperCase() : 'MENTINE',
+    correctedScore: punctajMatch ? parseInt(punctajMatch[1]) : ai1Result.score,
+  };
 }
 
-// Handler principal
+// ============================================
+// SECȚIUNEA 6: FLOW PRINCIPAL EVALUARE
+// ============================================
+
+async function evaluateStep(stepData, answer, isCorrect) {
+  let preValidation = { matchedCount: 0, matchedAnswers: [], meetsMinimum: false };
+
+  // Pre-validare doar pentru short answers
+  if (stepData.type === 'short' && EXPECTED_ANSWERS[stepData.step]) {
+    const config = EXPECTED_ANSWERS[stepData.step];
+    preValidation = preValidateAnswer(answer, config.acceptedAnswers, config.minimumRequired);
+  }
+
+  // AI1 evaluează
+  const ai1Result = await evaluateWithAI1(stepData, answer, isCorrect, preValidation);
+
+  // Verifică dacă e suspect (doar pentru short)
+  if (stepData.type === 'short') {
+    const isSuspicious =
+      (ai1Result.score === 0 && preValidation.meetsMinimum) ||
+      (ai1Result.score === stepData.points && !preValidation.meetsMinimum);
+
+    if (isSuspicious) {
+      const verification = await verifyWithAI2(stepData, answer, ai1Result, preValidation);
+
+      if (verification.action === 'CORECTEAZA') {
+        return {
+          score: verification.correctedScore,
+          feedback: ai1Result.feedback + '\n\n✓ Punctaj verificat și ajustat',
+          corrected: true,
+        };
+      }
+    }
+  }
+
+  return {
+    score: ai1Result.score,
+    feedback: ai1Result.feedback,
+    corrected: false,
+  };
+}
+
+// ============================================
+// SECȚIUNEA 7: RAPORT FINAL
+// ============================================
+
+function buildFinalReportPrompt(student, performanceData) {
+  const { totalScore, maxScore } = performanceData;
+  const percentage = (totalScore / maxScore) * 100;
+
+  return `Tu ești profesor de religie prietenos. ${student.name} ${
+    student.surname
+  } a terminat activitatea.
+
+PERFORMANȚĂ: ${totalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
+
+Raport în 3 puncte:
+- **Ce ți-a ieșit cel mai bine:** [puncte forte]
+- **Merită să aprofundezi:** [sugestii pozitive]
+- **Știai că…?:** [fapt interesant + emoji]
+
+
+Maxim 2-3 propoziții per punct.`;
+}
+
+async function generateFinalReport(student, performanceData) {
+  const prompt = buildFinalReportPrompt(student, performanceData);
+  return await callAI(prompt, 'Tu ești profesor de religie inspirant.', 0.6, 400);
+}
+
+// ============================================
+// SECȚIUNEA 8: HANDLERS
+// ============================================
+
+async function handleStepFeedback(requestData) {
+  const { stepData, answer, student, isCorrect } = requestData;
+
+  if (!stepData || answer === undefined || !student) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Date incomplete' }),
+    };
+  }
+
+  try {
+    const result = await evaluateStep(stepData, answer, isCorrect);
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: true,
+        score: result.score,
+        feedback: result.feedback,
+        maxPoints: stepData.points,
+        corrected: result.corrected,
+        aiGenerated: true,
+      }),
+    };
+  } catch (error) {
+    console.error('Eroare evaluare:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: false,
+        error: 'Sistemul de feedback AI este temporar indisponibil.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      }),
+    };
+  }
+}
+
+async function handleFinalReport(requestData) {
+  const { student, performanceData } = requestData;
+
+  if (!student || !performanceData) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Date incomplete' }),
+    };
+  }
+
+  try {
+    const finalReport = await generateFinalReport(student, performanceData);
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: true,
+        finalReport,
+        aiGenerated: true,
+      }),
+    };
+  } catch (error) {
+    console.error('Eroare raport final:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        success: false,
+        error: 'Raportul final nu poate fi generat momentan.',
+      }),
+    };
+  }
+}
+
+// ============================================
+// SECȚIUNEA 9: EXPORT HANDLER
+// ============================================
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Method not allowed',
-      }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Method not allowed' }),
     };
   }
 
@@ -196,14 +419,8 @@ exports.handler = async (event) => {
   } catch (parseError) {
     return {
       statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Date JSON invalide',
-      }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Date JSON invalide' }),
     };
   }
 
@@ -216,235 +433,8 @@ exports.handler = async (event) => {
   } else {
     return {
       statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Tip de cerere invalid',
-      }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ success: false, error: 'Tip de cerere invalid' }),
     };
   }
 };
-
-// Gestionează feedback pentru o sarcină individuală
-async function handleStepFeedback(requestData) {
-  const { stepData, answer, student, isCorrect, exerciseConfig } = requestData;
-
-  if (!stepData || answer === undefined || answer === null || !student || !exerciseConfig) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Date incomplete pentru procesarea AI',
-      }),
-    };
-  }
-
-  try {
-    let feedback = '';
-    let score = 0;
-
-    if (stepData.type === 'grila') {
-      score = isCorrect ? 2 : 0;
-
-      const prompt = buildGrilaPrompt(stepData, student, answer, isCorrect, exerciseConfig);
-
-      const aiResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        max_tokens: 250,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Tu ești profesor de religie pentru clasa a IX-a. Oferă feedback educativ și spiritual.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      });
-
-      feedback = aiResponse.choices?.[0]?.message?.content?.trim();
-
-      if (!feedback) {
-        throw new Error('OpenAI nu a returnat feedback valid pentru grila');
-      }
-    } else if (stepData.type === 'short') {
-      const prompt = buildShortPrompt(stepData, student, answer, exerciseConfig);
-
-      const aiResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0.6,
-        max_tokens: 350,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Tu ești profesor de religie pentru clasa a IX-a. Evaluează strict conform criteriilor date.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      });
-
-      const aiText = aiResponse.choices?.[0]?.message?.content?.trim();
-
-      if (!aiText) {
-        throw new Error('OpenAI nu a returnat răspuns valid');
-      }
-
-      const punctajMatch = aiText.match(/PUNCTAJ:\s*([0-9]+)/i);
-      const feedbackMatch = aiText.match(/FEEDBACK:\s*(.+)/is);
-
-      if (punctajMatch) {
-        score = parseInt(punctajMatch[1]);
-        score = Math.max(0, Math.min(score, 2));
-      } else {
-        throw new Error('AI nu a returnat punctaj în formatul așteptat');
-      }
-
-      if (feedbackMatch) {
-        feedback = feedbackMatch[1].trim();
-      } else {
-        throw new Error('AI nu a returnat feedback în formatul așteptat');
-      }
-    } else {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({
-          success: false,
-          error: `Tip de întrebare nesuportat: ${stepData.type}`,
-        }),
-      };
-    }
-
-    if (!feedback || feedback.length < 10) {
-      throw new Error('Feedback AI prea scurt sau invalid');
-    }
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: true,
-        feedback: feedback,
-        score: score,
-        maxPoints: 2,
-        aiGenerated: true,
-      }),
-    };
-  } catch (error) {
-    console.error('Eroare AI feedback:', {
-      error: error.message,
-      stepType: stepData?.type,
-      student: student?.name,
-    });
-
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Sistemul de feedback AI este temporar indisponibil.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      }),
-    };
-  }
-}
-
-// Gestionează raportul final
-async function handleFinalReport(requestData) {
-  const { student, performanceData, allStepsData, exerciseConfig } = requestData;
-
-  if (!student || !performanceData || !allStepsData) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Date incomplete pentru raportul final',
-      }),
-    };
-  }
-
-  try {
-    const prompt = buildFinalReportPrompt(student, performanceData, allStepsData, exerciseConfig);
-
-    const aiResponse = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.6,
-      max_tokens: 400,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Tu ești profesor de religie pentru clasa a IX-a. Oferă rapoarte finale inspirante și provocatoare.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
-
-    const finalReport = aiResponse.choices?.[0]?.message?.content?.trim();
-
-    if (!finalReport || finalReport.length < 50) {
-      throw new Error('OpenAI nu a returnat raport final valid');
-    }
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: true,
-        finalReport: finalReport,
-        aiGenerated: true,
-      }),
-    };
-  } catch (error) {
-    console.error('Eroare raport final AI:', {
-      error: error.message,
-      student: student?.name,
-    });
-
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: 'Sistemul de raport final AI este temporar indisponibil.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      }),
-    };
-  }
-}
