@@ -156,23 +156,27 @@ Acordă punctaj între 0-${stepData.points} și oferă feedback.`;
 ÎNTREBARE: "${stepData.question}"
 RĂSPUNS ELEV: "${answer}"
 
-RĂSPUNSURI CORECTE:
+RĂSPUNSURI CORECTE ACCEPTATE:
 ${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
-CRITERII:
-- ${config.minimumRequired} sau mai multe răspunsuri corecte = ${stepData.points} puncte
-- Mai puțin = 0 puncte
+INSTRUCȚIUNI DE EVALUARE:
+1. Citește cu atenție răspunsul elevului
+2. Identifică FIECARE cuvânt/frază care se referă la un răspuns corect
+3. Fii FOARTE tolerant cu greșelile de scriere de pe telefon:
+   - Litere lipsă sau schimbate (max 2-3 diferențe)
+   - Fără diacritice
+   - Variații fonetice ale aceluiași cuvânt
+4. Gândește semantic: "La ce răspuns corect se referă elevul cu acest cuvânt?"
+5. Dacă identifici ${config.minimumRequired}+ răspunsuri corecte = ${stepData.points} puncte
+6. Mai puțin de ${config.minimumRequired} = 0 puncte
 
-IMPORTANT: Elevii scriu de pe telefon și pot avea greșeli de scriere. Dacă un cuvânt seamănă evident cu un răspuns corect (diferență de 1-3 litere, litere lipsă sau schimbate, fără diacritice), consideră-l corect. Gândește: "La ce răspuns s-a referit elevul când a scris acest cuvânt?"
-
-Format:
+Format răspuns:
 PUNCTAJ: [0 sau ${stepData.points}]
 FEEDBACK:
-- [confirmare/corectare - referă-te specific la ce a scris elevul]
+- [confirmare ce a identificat corect sau corectare]
 - [detaliu despre conceptele menționate]
-- [curiozitate interesantă legată de răspuns]`;
+- [curiozitate interesantă]`;
 }
-
 // ============================================
 // SECȚIUNEA 5: AL DOILEA EVALUATOR (control)
 // ============================================
@@ -188,27 +192,23 @@ RĂSPUNS ELEV: "${answer}"
 RĂSPUNSURI CORECTE:
 ${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
-EVALUAREA ANTERIOARĂ (de la colegul tău):
-Punctaj acordat: ${evaluator1Result.score}/${stepData.points} puncte
-Feedback: "${evaluator1Result.feedback}"
+EVALUAREA PRIMULUI COLEG:
+Punctaj: ${evaluator1Result.score}/${stepData.points}
 
 SARCINA TA:
-Analizează INDEPENDENT răspunsul elevului. Ignoră evaluarea colegului și judecă singur:
+Analizează INDEPENDENT răspunsul. Ignoră ce a zis colegul.
 
-1. Identifică fiecare cuvânt din răspunsul elevului
-2. Pentru fiecare cuvânt, întreabă-te: "Seamănă cu vreun răspuns corect?" (tolerează litere lipsă, schimbate, fără diacritice)
+1. Descompune răspunsul în cuvinte/concepte
+2. Pentru FIECARE cuvânt: "Seamănă cu vreun răspuns corect?" (tolerează greșeli de scriere)
 3. Numără câte răspunsuri corecte ai identificat
-4. Acordă punctaj conform criteriilor
+4. Aplică regula: ${config.minimumRequired}+ răspunsuri = ${stepData.points} puncte
 
-Dacă identifici ${config.minimumRequired} sau mai multe răspunsuri corecte = ${
-    stepData.points
-  } puncte.
-Dacă colegul a dat punctaj greșit → CORECTEAZĂ.
+Dacă primul evaluator a greșit → CORECTEAZĂ fără ezitare.
 
 Format:
 DECIZIE: [MENTIN/CORECTEZ]
 PUNCTAJ_FINAL: [0 sau ${stepData.points}]
-ARGUMENTARE: [explică ce răspunsuri ai identificat și de ce menții sau corectezi]`;
+ARGUMENTARE: [ce răspunsuri ai identificat și de ce]`;
 }
 
 // ============================================
