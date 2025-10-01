@@ -53,8 +53,7 @@ const EXPECTED_ANSWERS = {
         keywords: [
           'Cincizecimea',
           'cincizecimea',
-          'cincizezime',
-          'cincizezimea',
+
           'Shavuot',
           'shavuot',
           'Savuot',
