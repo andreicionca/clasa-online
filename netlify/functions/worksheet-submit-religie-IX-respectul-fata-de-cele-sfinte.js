@@ -46,8 +46,7 @@ const EXPECTED_ANSWERS = {
       { keywords: ['Sinai', 'sinai'], name: 'Sinai' },
     ],
     minimumRequired: 1,
-    funFact:
-      'Muntele Sinai se află în Peninsula Sinai - o zonă pustie unde Moise păștea oile. Azi e o destinație turistică cu mănăstiri vechi de secole. Tu te plângi când mergi cu autobuzul 30 de minute la școală!',
+    context: 'muntele unde Moise a văzut rugul aprins',
   },
   5: {
     // Sărbători de pelerinaj
@@ -72,8 +71,7 @@ const EXPECTED_ANSWERS = {
       },
     ],
     minimumRequired: 2,
-    funFact:
-      'La aceste trei sărbători, TOȚI evreii din întreaga țară veneau la Ierusalim - era ca un mega-festival religios de câteva ori pe an. Imaginează-ți orașul plin cu zeci de mii de pelerini!',
+    context: 'sărbătorile de pelerinaj la Ierusalim',
   },
   7: {
     // Orașul Templului
@@ -81,8 +79,7 @@ const EXPECTED_ANSWERS = {
       { keywords: ['Ierusalim', 'Ierusalem', 'Jerusalem', 'ierusalim'], name: 'Ierusalim' },
     ],
     minimumRequired: 1,
-    funFact:
-      'Ierusalimul era și rămâne oraș sfânt pentru TREI religii: iudaism, creștinism și islam. E singurul oraș de pe pământ cu trei capitale spirituale în unul singur!',
+    context: 'orașul unde se afla Templul',
   },
   9: {
     // Blasfemie
@@ -94,8 +91,7 @@ const EXPECTED_ANSWERS = {
       { keywords: ['sfinte', 'sfânt', 'Dumnezeu', 'religie'], name: 'față de cele sfinte' },
     ],
     minimumRequired: 2,
-    funFact:
-      'În România, art. 29 din Constituție garantează libertatea religioasă și respectul între culte. Blasfemia nu e doar o chestiune religioasă, e și despre respectul civic față de credința altora!',
+    context: 'definiția blasfemiei',
   },
 };
 
@@ -121,11 +117,13 @@ ${
     : 'Explică scurt de ce răspunsul corect este cel adevărat.'
 }
 
+IMPORTANT: La al treilea bullet point, oferă o curiozitate interesantă și personalizată legată de subiect. Evită formulări generice - fiecare elev merită ceva unic!
+
 Format:
 FEEDBACK:
 - [confirmare/corectare]
-- [explicație]
-- [fun fact cu emoji]`;
+- [explicație scurtă]
+- [curiozitate interesantă + emoji - fiecare feedback să fie diferit]`;
 }
 
 function buildShortPrompt(stepData, answer, preValidation) {
@@ -134,7 +132,7 @@ function buildShortPrompt(stepData, answer, preValidation) {
   if (!config) {
     return `Evaluează răspunsul elevului la: "${stepData.question}"
 Răspuns: "${answer}"
-Acordă punctaj între 0-2 și oferă feedback constructiv.`;
+Acordă punctaj între 0-2 și oferă feedback constructiv și personalizat.`;
   }
 
   return `Tu ești profesor de religie care corectează o fișă de lucru.
@@ -153,14 +151,18 @@ CRITERII:
 - ${config.minimumRequired}+ răspunsuri corecte = 2 puncte
 - Mai puțin = 0 puncte
 
-IMPORTANT: Fii generos cu variații ortografice (elevul scrie de pe telefon).
+IMPORTANT:
+- Fii generos cu variații ortografice (elevul scrie de pe telefon)
+- Referă-te SPECIFIC la ce a scris elevul (ex: dacă a menționat 2 sărbători, spune "cele două sărbători pe care le-ai menționat", NU "cele trei sărbători")
+- La final, oferă o curiozitate interesantă și PERSONALIZATĂ legată de răspunsul concret al elevului
+- Evită formulări generice - fiecare feedback trebuie să fie unic
 
 Format:
 PUNCTAJ: [0 sau 2]
 FEEDBACK:
-- [confirmare/corectare]
-- [detaliu]
-- [${config.funFact}]`;
+- [confirmare/corectare specifică răspunsului elevului]
+- [detaliu despre sărbătorile/conceptele pe care LE-A MENȚIONAT elevul]
+- [curiozitate legată direct de răspunsul dat + emoji - ceva diferit pentru fiecare elev]`;
 }
 
 // ============================================
@@ -170,7 +172,7 @@ FEEDBACK:
 function buildVerificationPrompt(stepData, answer, ai1Result, preValidation) {
   const config = EXPECTED_ANSWERS[stepData.step];
 
-  return `Verificator AI. Detectează DOAR erori flagrante.
+  return `Verificator AI. Detectează DOAR erori flagrante de evaluare.
 
 RĂSPUNS ELEV: "${answer}"
 EVALUARE AI1: ${ai1Result.score}/${stepData.points} puncte
@@ -180,12 +182,16 @@ VERIFICĂ:
 ${
   preValidation.meetsMinimum && ai1Result.score === 0
     ? '⚠️ SUSPECT: Pre-validarea găsește răspunsuri corecte dar AI1 a dat 0 puncte'
-    : '✓ Pare OK'
+    : !preValidation.meetsMinimum && ai1Result.score > 0
+    ? '⚠️ SUSPECT: AI1 a dat puncte dar pre-validarea nu găsește suficiente răspunsuri corecte'
+    : '✓ Evaluarea pare corectă'
 }
+
+Sarcina ta: Dacă este o eroare flagrantă (AI1 s-a înșelat grav), corectează. Altfel, menține evaluarea.
 
 ACȚIUNE: [MENTINE/CORECTEAZA]
 PUNCTAJ_FINAL: [0-${stepData.points}]
-MOTIV: [doar dacă corectezi]`;
+MOTIV: [doar dacă corectezi - explică pe scurt de ce]`;
 }
 
 // ============================================
@@ -211,14 +217,15 @@ async function evaluateWithAI1(stepData, answer, isCorrect, preValidation) {
 
   if (stepData.type === 'grila') {
     prompt = buildGrilaPrompt(stepData, answer, isCorrect);
-    systemMsg = 'Tu ești profesor de religie pentru elevi de liceu.';
+    systemMsg =
+      'Tu ești profesor de religie pentru elevi de liceu. Oferă feedback personalizat și interesant pentru fiecare elev.';
   } else {
     prompt = buildShortPrompt(stepData, answer, preValidation);
     systemMsg =
-      'Tu ești profesor de religie. Fii generos cu elevii care scriu de pe telefon și pot avea greșeli de tipar. Ai in vedere ca unii scriu cu diacritice iar alții nu.';
+      'Tu ești profesor de religie. Fii generos cu elevii care scriu de pe telefon. Oferă feedback PERSONALIZAT - evită formulări generice. Fiecare elev merită un răspuns unic legat de ce a scris el concret.';
   }
 
-  const aiText = await callAI(prompt, systemMsg, 0.7);
+  const aiText = await callAI(prompt, systemMsg, 0.7, 350);
 
   // Parse
   if (stepData.type === 'grila') {
@@ -239,7 +246,12 @@ async function evaluateWithAI1(stepData, answer, isCorrect, preValidation) {
 
 async function verifyWithAI2(stepData, answer, ai1Result, preValidation) {
   const prompt = buildVerificationPrompt(stepData, answer, ai1Result, preValidation);
-  const aiText = await callAI(prompt, 'Tu ești verificator strict.', 0.3, 200);
+  const aiText = await callAI(
+    prompt,
+    'Tu ești verificator strict. Corectezi DOAR erori flagrante, nu nuanțe.',
+    0.3,
+    250
+  );
 
   const actionMatch = aiText.match(/ACTIUNE:\s*(MENTINE|CORECTEAZA)/i);
   const punctajMatch = aiText.match(/PUNCTAJ_FINAL:\s*([0-9]+)/i);
@@ -247,6 +259,7 @@ async function verifyWithAI2(stepData, answer, ai1Result, preValidation) {
   return {
     action: actionMatch ? actionMatch[1].toUpperCase() : 'MENTINE',
     correctedScore: punctajMatch ? parseInt(punctajMatch[1]) : ai1Result.score,
+    reason: aiText,
   };
 }
 
@@ -267,18 +280,31 @@ async function evaluateStep(stepData, answer, isCorrect) {
   const ai1Result = await evaluateWithAI1(stepData, answer, isCorrect, preValidation);
 
   // Verifică dacă e suspect (doar pentru short)
-  if (stepData.type === 'short') {
+  if (stepData.type === 'short' && EXPECTED_ANSWERS[stepData.step]) {
     const isSuspicious =
       (ai1Result.score === 0 && preValidation.meetsMinimum) ||
       (ai1Result.score === stepData.points && !preValidation.meetsMinimum);
 
     if (isSuspicious) {
+      console.log('[SUSPICIOUS] Trimit la AI2 verificator:', {
+        step: stepData.step,
+        ai1Score: ai1Result.score,
+        preValidationMatches: preValidation.matchedCount,
+        meetsMinimum: preValidation.meetsMinimum,
+      });
+
       const verification = await verifyWithAI2(stepData, answer, ai1Result, preValidation);
 
       if (verification.action === 'CORECTEAZA') {
+        console.log('[CORRECTED] AI2 a corectat punctajul:', {
+          oldScore: ai1Result.score,
+          newScore: verification.correctedScore,
+          reason: verification.reason,
+        });
+
         return {
           score: verification.correctedScore,
-          feedback: ai1Result.feedback + '\n\n✓ Punctaj verificat și ajustat',
+          feedback: ai1Result.feedback + '\n\n✓ Punctaj verificat și ajustat după evaluare',
           corrected: true,
         };
       }
@@ -300,24 +326,32 @@ function buildFinalReportPrompt(student, performanceData) {
   const { totalScore, maxScore } = performanceData;
   const percentage = (totalScore / maxScore) * 100;
 
-  return `Tu ești profesor de religie prietenos. ${student.name} ${
-    student.surname
-  } a terminat activitatea.
+  return `Tu ești profesor de religie prietenos care cunoaște elevii personalizat.
 
-PERFORMANȚĂ: ${totalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
+Elevul: ${student.name} ${student.surname}
+Performanță: ${totalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
 
-Raport în 3 puncte:
-- **Ce ți-a ieșit cel mai bine:** [puncte forte]
-- **Merită să aprofundezi:** [sugestii pozitive]
-- **Știai că…?:** [fapt interesant + emoji]
+Creează un raport PERSONALIZAT în 3 puncte:
 
+- **Ce ți-a ieșit cel mai bine:** [punctele forte specifice ale acestui elev]
+- **Merită să aprofundezi:** [sugestii pozitive și concrete]
+- **Știai că…?:** [fapt interesant legat de subiect + emoji]
 
-Maxim 2-3 propoziții per punct.`;
+IMPORTANT:
+- Raportul trebuie să sune personal, nu generic
+- Maxim 2-3 propoziții per punct
+- Evită clișee precum "Bravo!", "Felicitări!" - fii direct și specific
+- Adresează-te direct elevului (tu/te)`;
 }
 
 async function generateFinalReport(student, performanceData) {
   const prompt = buildFinalReportPrompt(student, performanceData);
-  return await callAI(prompt, 'Tu ești profesor de religie inspirant.', 0.6, 400);
+  return await callAI(
+    prompt,
+    'Tu ești profesor de religie care oferă feedback personalizat și inspirant pentru fiecare elev în parte.',
+    0.7,
+    400
+  );
 }
 
 // ============================================
