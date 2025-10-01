@@ -46,57 +46,72 @@ const EXPECTED_ANSWERS = {
       { keywords: ['Sinai', 'sinai'], name: 'Sinai' },
     ],
     minimumRequired: 1,
-    context: 'muntele unde Moise a văzut rugul aprins',
   },
   5: {
     // Sărbători de pelerinaj
     acceptedAnswers: [
-      { keywords: ['Paste', 'Pesah', 'Pasti', 'paste', 'pesah'], name: 'Paștele' },
+      { keywords: ['Paste', 'Pesah', 'Pasti', 'paste', 'pesah', 'pasti'], name: 'Paștele' },
       {
         keywords: [
           'Cincizecimea',
+          'cincizecimea',
           'Shavuot',
+          'shavuot',
           'Savuot',
+          'savuot',
           'Șavuot',
           'Saptaman',
+          'saptaman',
+          'Saptamanilor',
           'Rusalii',
-          'cincizecimea',
-          'shavuot',
+          'rusalii',
         ],
         name: 'Cincizecimea',
       },
       {
-        keywords: ['Corturilor', 'Sucot', 'Sukkot', 'Cort', 'corturilor', 'sucot'],
+        keywords: [
+          'Corturilor',
+          'corturilor',
+          'Sucot',
+          'sucot',
+          'Sukkot',
+          'sukkot',
+          'Cort',
+          'cort',
+        ],
         name: 'Sărbătoarea Corturilor',
       },
     ],
     minimumRequired: 2,
-    context: 'sărbătorile de pelerinaj la Ierusalim',
   },
   7: {
     // Orașul Templului
     acceptedAnswers: [
-      { keywords: ['Ierusalim', 'Ierusalem', 'Jerusalem', 'ierusalim'], name: 'Ierusalim' },
+      {
+        keywords: ['Ierusalim', 'ierusalim', 'Ierusalem', 'ierusalem', 'Jerusalem', 'jerusalem'],
+        name: 'Ierusalim',
+      },
     ],
     minimumRequired: 1,
-    context: 'orașul unde se afla Templul',
   },
   9: {
     // Blasfemie
     acceptedAnswers: [
       {
-        keywords: ['lipsa de respect', 'lipsă', 'jignire', 'ofensa', 'ofensă'],
+        keywords: ['lipsa de respect', 'lipsă', 'jignire', 'jignirea', 'ofensa', 'ofensă'],
         name: 'lipsă de respect',
       },
-      { keywords: ['sfinte', 'sfânt', 'Dumnezeu', 'religie'], name: 'față de cele sfinte' },
+      {
+        keywords: ['sfinte', 'sfânt', 'sfant', 'Dumnezeu', 'dumnezeu', 'religie'],
+        name: 'față de cele sfinte',
+      },
     ],
     minimumRequired: 2,
-    context: 'definiția blasfemiei',
   },
 };
 
 // ============================================
-// SECȚIUNEA 3: PROMPT-URI AI1 (EVALUATOR)
+// SECȚIUNEA 3: PROMPT-URI PENTRU GRILE
 // ============================================
 
 function buildGrilaPrompt(stepData, answer, isCorrect) {
@@ -109,7 +124,7 @@ ${stepData.options.map((opt, i) => `${i}. ${opt}`).join('\n')}
 
 RĂSPUNS CORECT: ${stepData.options[stepData.correct_answer]}
 RĂSPUNS ELEV: ${stepData.options[answer]}
-REZULTAT: ${isCorrect ? 'CORECT ✓' : 'GREȘIT ✗'}
+REZULTAT: ${isCorrect ? 'CORECT' : 'GREȘIT'}
 
 ${
   isCorrect
@@ -117,22 +132,26 @@ ${
     : 'Explică scurt de ce răspunsul corect este cel adevărat.'
 }
 
-IMPORTANT: La al treilea bullet point, oferă o curiozitate interesantă și personalizată legată de subiect. Evită formulări generice - fiecare elev merită ceva unic!
+La al treilea bullet point, oferă o curiozitate interesantă legată de subiect. Fiecare elev merită un feedback personalizat.
 
 Format:
 FEEDBACK:
 - [confirmare/corectare]
-- [explicație scurtă]
-- [curiozitate interesantă + emoji - fiecare feedback să fie diferit]`;
+- [explicație]
+- [curiozitate interesantă]`;
 }
 
-function buildShortPrompt(stepData, answer, preValidation) {
+// ============================================
+// SECȚIUNEA 4: PRIMUL EVALUATOR (răspunsuri scurte)
+// ============================================
+
+function buildEvaluator1Prompt(stepData, answer) {
   const config = EXPECTED_ANSWERS[stepData.step];
 
   if (!config) {
     return `Evaluează răspunsul elevului la: "${stepData.question}"
 Răspuns: "${answer}"
-Acordă punctaj între 0-2 și oferă feedback constructiv și personalizat.`;
+Acordă punctaj între 0-${stepData.points} și oferă feedback.`;
   }
 
   return `Tu ești profesor de religie care corectează o fișă de lucru.
@@ -140,62 +159,61 @@ Acordă punctaj între 0-2 și oferă feedback constructiv și personalizat.`;
 ÎNTREBARE: "${stepData.question}"
 RĂSPUNS ELEV: "${answer}"
 
-PRE-ANALIZĂ: Identificat ${preValidation.matchedCount}/${
-    config.minimumRequired
-  } răspunsuri corecte: ${preValidation.matchedAnswers.join(', ') || 'niciunul'}
-
-RĂSPUNSURI ACCEPTATE:
+RĂSPUNSURI CORECTE:
 ${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
 CRITERII:
-- ${config.minimumRequired}+ răspunsuri corecte = 2 puncte
+- ${config.minimumRequired} sau mai multe răspunsuri corecte = ${stepData.points} puncte
 - Mai puțin = 0 puncte
 
-IMPORTANT:
-- Fii generos cu variații ortografice (elevul scrie de pe telefon)
-- Referă-te SPECIFIC la ce a scris elevul (ex: dacă a menționat 2 sărbători, spune "cele două sărbători pe care le-ai menționat", NU "cele trei sărbători")
-- La final, oferă o curiozitate interesantă și PERSONALIZATĂ legată de răspunsul concret al elevului
-- Evită formulări generice - fiecare feedback trebuie să fie unic
+Elevii scriu de pe telefon și pot avea greșeli de scriere. Evaluează esența răspunsului.
 
 Format:
-PUNCTAJ: [0 sau 2]
+PUNCTAJ: [0 sau ${stepData.points}]
 FEEDBACK:
-- [confirmare/corectare specifică răspunsului elevului]
-- [detaliu despre sărbătorile/conceptele pe care LE-A MENȚIONAT elevul]
-- [curiozitate legată direct de răspunsul dat + emoji - ceva diferit pentru fiecare elev]`;
+- [confirmare/corectare - referă-te specific la ce a scris elevul]
+- [detaliu despre conceptele menționate]
+- [curiozitate interesantă legată de răspuns]`;
 }
 
 // ============================================
-// SECȚIUNEA 4: PROMPT AI2 (VERIFICATOR)
+// SECȚIUNEA 5: AL DOILEA EVALUATOR (control)
 // ============================================
 
-function buildVerificationPrompt(stepData, answer, ai1Result, preValidation) {
+function buildEvaluator2Prompt(stepData, answer, evaluator1Result) {
   const config = EXPECTED_ANSWERS[stepData.step];
 
-  return `Verificator AI. Detectează DOAR erori flagrante de evaluare.
+  return `Tu ești al doilea evaluator, care verifică independent o corectare făcută de un coleg.
 
+ÎNTREBARE: "${stepData.question}"
 RĂSPUNS ELEV: "${answer}"
-EVALUARE AI1: ${ai1Result.score}/${stepData.points} puncte
-PRE-VALIDARE: ${preValidation.matchedCount}/${config?.minimumRequired || 0} răspunsuri găsite
 
-VERIFICĂ:
-${
-  preValidation.meetsMinimum && ai1Result.score === 0
-    ? '⚠️ SUSPECT: Pre-validarea găsește răspunsuri corecte dar AI1 a dat 0 puncte'
-    : !preValidation.meetsMinimum && ai1Result.score > 0
-    ? '⚠️ SUSPECT: AI1 a dat puncte dar pre-validarea nu găsește suficiente răspunsuri corecte'
-    : '✓ Evaluarea pare corectă'
-}
+RĂSPUNSURI CORECTE:
+${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
-Sarcina ta: Dacă este o eroare flagrantă (AI1 s-a înșelat grav), corectează. Altfel, menține evaluarea.
+EVALUAREA COLEGULUI:
+Punctaj acordat: ${evaluator1Result.score}/${stepData.points} puncte
+Argumentație: "${evaluator1Result.feedback}"
 
-ACȚIUNE: [MENTINE/CORECTEAZA]
-PUNCTAJ_FINAL: [0-${stepData.points}]
-MOTIV: [doar dacă corectezi - explică pe scurt de ce]`;
+SARCINA TA:
+Analizează independent răspunsul elevului. Nu te ghida după evaluarea colegului - gândește singur:
+
+1. Câte răspunsuri corecte a menționat elevul? (fii tolerant cu greșeli de scriere)
+2. Evaluarea colegului a fost corectă sau a greșit?
+3. Ce punctaj ar trebui acordat corect?
+
+Dacă elevul a menționat ${config.minimumRequired} răspunsuri corecte = ${
+    stepData.points
+  } puncte, chiar dacă au greșeli de scriere.
+
+Format:
+DECIZIE: [MENTIN/CORECTEZ]
+PUNCTAJ_FINAL: [0 sau ${stepData.points}]
+ARGUMENTARE: [de ce menții sau corectezi evaluarea - explică clar]`;
 }
 
 // ============================================
-// SECȚIUNEA 5: APELURI AI
+// SECȚIUNEA 6: APELURI CĂTRE AI
 // ============================================
 
 async function callAI(prompt, systemMessage, temperature = 0.6, maxTokens = 300) {
@@ -212,22 +230,21 @@ async function callAI(prompt, systemMessage, temperature = 0.6, maxTokens = 300)
   return response.choices[0].message.content.trim();
 }
 
-async function evaluateWithAI1(stepData, answer, isCorrect, preValidation) {
+async function evaluateWithFirstEvaluator(stepData, answer, isCorrect) {
   let prompt, systemMsg;
 
   if (stepData.type === 'grila') {
     prompt = buildGrilaPrompt(stepData, answer, isCorrect);
-    systemMsg =
-      'Tu ești profesor de religie pentru elevi de liceu. Oferă feedback personalizat și interesant pentru fiecare elev.';
+    systemMsg = 'Tu ești profesor de religie pentru elevi de liceu.';
   } else {
-    prompt = buildShortPrompt(stepData, answer, preValidation);
+    prompt = buildEvaluator1Prompt(stepData, answer);
     systemMsg =
-      'Tu ești profesor de religie. Fii generos cu elevii care scriu de pe telefon. Oferă feedback PERSONALIZAT - evită formulări generice. Fiecare elev merită un răspuns unic legat de ce a scris el concret.';
+      'Tu ești profesor de religie. Fii rezonabil cu elevii care scriu de pe telefon și pot avea greșeli de tipar.';
   }
 
   const aiText = await callAI(prompt, systemMsg, 0.7, 350);
 
-  // Parse
+  // Parse răspuns
   if (stepData.type === 'grila') {
     return {
       score: isCorrect ? 2 : 0,
@@ -244,118 +261,101 @@ async function evaluateWithAI1(stepData, answer, isCorrect, preValidation) {
   }
 }
 
-async function verifyWithAI2(stepData, answer, ai1Result, preValidation) {
-  const prompt = buildVerificationPrompt(stepData, answer, ai1Result, preValidation);
-  const aiText = await callAI(
-    prompt,
-    'Tu ești verificator strict. Corectezi DOAR erori flagrante, nu nuanțe.',
-    0.3,
-    250
-  );
+async function evaluateWithSecondEvaluator(stepData, answer, evaluator1Result) {
+  const prompt = buildEvaluator2Prompt(stepData, answer, evaluator1Result);
+  const systemMsg =
+    'Tu ești al doilea evaluator independent. Corectezi doar când colegul tău a greșit clar.';
 
-  const actionMatch = aiText.match(/ACTIUNE:\s*(MENTINE|CORECTEAZA)/i);
+  const aiText = await callAI(prompt, systemMsg, 0.4, 300);
+
+  const decizieMatch = aiText.match(/DECIZIE:\s*(MENTIN|CORECTEZ)/i);
   const punctajMatch = aiText.match(/PUNCTAJ_FINAL:\s*([0-9]+)/i);
+  const argumentareMatch = aiText.match(/ARGUMENTARE:\s*(.+)/is);
 
   return {
-    action: actionMatch ? actionMatch[1].toUpperCase() : 'MENTINE',
-    correctedScore: punctajMatch ? parseInt(punctajMatch[1]) : ai1Result.score,
-    reason: aiText,
+    decizie: decizieMatch ? decizieMatch[1].toUpperCase() : 'MENTIN',
+    punctajFinal: punctajMatch ? parseInt(punctajMatch[1]) : evaluator1Result.score,
+    argumentare: argumentareMatch ? argumentareMatch[1].trim() : aiText,
   };
 }
 
 // ============================================
-// SECȚIUNEA 6: FLOW PRINCIPAL EVALUARE
+// SECȚIUNEA 7: FLOW PRINCIPAL EVALUARE
 // ============================================
 
 async function evaluateStep(stepData, answer, isCorrect) {
-  let preValidation = { matchedCount: 0, matchedAnswers: [], meetsMinimum: false };
+  // PASUL 1: Primul evaluator corectează
+  const evaluator1Result = await evaluateWithFirstEvaluator(stepData, answer, isCorrect);
 
-  // Pre-validare doar pentru short answers
-  if (stepData.type === 'short' && EXPECTED_ANSWERS[stepData.step]) {
-    const config = EXPECTED_ANSWERS[stepData.step];
-    preValidation = preValidateAnswer(answer, config.acceptedAnswers, config.minimumRequired);
-  }
+  // PASUL 2: Pentru răspunsuri scurte, al doilea evaluator verifică când nu e punctaj maxim
+  if (stepData.type === 'short' && evaluator1Result.score < stepData.points) {
+    console.log('[EVALUATOR 2] Punctaj sub maxim - trimit la al doilea evaluator:', {
+      step: stepData.step,
+      answer: answer,
+      punctajEvaluator1: evaluator1Result.score,
+      punctajMaxim: stepData.points,
+    });
 
-  // AI1 evaluează
-  const ai1Result = await evaluateWithAI1(stepData, answer, isCorrect, preValidation);
+    const evaluator2Result = await evaluateWithSecondEvaluator(stepData, answer, evaluator1Result);
 
-  // Verifică dacă e suspect (doar pentru short)
-  if (stepData.type === 'short' && EXPECTED_ANSWERS[stepData.step]) {
-    const isSuspicious =
-      (ai1Result.score === 0 && preValidation.meetsMinimum) ||
-      (ai1Result.score === stepData.points && !preValidation.meetsMinimum);
-
-    if (isSuspicious) {
-      console.log('[SUSPICIOUS] Trimit la AI2 verificator:', {
-        step: stepData.step,
-        ai1Score: ai1Result.score,
-        preValidationMatches: preValidation.matchedCount,
-        meetsMinimum: preValidation.meetsMinimum,
+    if (evaluator2Result.decizie === 'CORECTEZ') {
+      console.log('[CORECTAT] Al doilea evaluator a ajustat punctajul:', {
+        punctajVechi: evaluator1Result.score,
+        punctajNou: evaluator2Result.punctajFinal,
+        argumentare: evaluator2Result.argumentare,
       });
 
-      const verification = await verifyWithAI2(stepData, answer, ai1Result, preValidation);
-
-      if (verification.action === 'CORECTEAZA') {
-        console.log('[CORRECTED] AI2 a corectat punctajul:', {
-          oldScore: ai1Result.score,
-          newScore: verification.correctedScore,
-          reason: verification.reason,
-        });
-
-        return {
-          score: verification.correctedScore,
-          feedback: ai1Result.feedback + '\n\n✓ Punctaj verificat și ajustat după evaluare',
-          corrected: true,
-        };
-      }
+      return {
+        score: evaluator2Result.punctajFinal,
+        feedback: evaluator1Result.feedback + '\n\n[Punctaj ajustat după reevaluare]',
+        corrected: true,
+      };
+    } else {
+      console.log('[MENȚINUT] Al doilea evaluator a confirmat punctajul inițial');
     }
   }
 
   return {
-    score: ai1Result.score,
-    feedback: ai1Result.feedback,
+    score: evaluator1Result.score,
+    feedback: evaluator1Result.feedback,
     corrected: false,
   };
 }
 
 // ============================================
-// SECȚIUNEA 7: RAPORT FINAL
+// SECȚIUNEA 8: RAPORT FINAL
 // ============================================
 
 function buildFinalReportPrompt(student, performanceData) {
   const { totalScore, maxScore } = performanceData;
   const percentage = (totalScore / maxScore) * 100;
 
-  return `Tu ești profesor de religie prietenos care cunoaște elevii personalizat.
+  return `Tu ești profesor de religie care cunoaște elevii personalizat.
 
 Elevul: ${student.name} ${student.surname}
 Performanță: ${totalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
 
-Creează un raport PERSONALIZAT în 3 puncte:
+Creează un raport personalizat în 3 puncte:
 
-- **Ce ți-a ieșit cel mai bine:** [punctele forte specifice ale acestui elev]
-- **Merită să aprofundezi:** [sugestii pozitive și concrete]
-- **Știai că…?:** [fapt interesant legat de subiect + emoji]
+- **Ce ți-a ieșit cel mai bine:** [punctele forte ale elevului]
+- **Merită să aprofundezi:** [sugestii concrete și pozitive]
+- **Știai că…?:** [fapt interesant legat de subiect]
 
-IMPORTANT:
-- Raportul trebuie să sune personal, nu generic
-- Maxim 2-3 propoziții per punct
-- Evită clișee precum "Bravo!", "Felicitări!" - fii direct și specific
-- Adresează-te direct elevului (tu/te)`;
+Maxim 2-3 propoziții per punct. Fii direct și specific, evită clișeele.`;
 }
 
 async function generateFinalReport(student, performanceData) {
   const prompt = buildFinalReportPrompt(student, performanceData);
   return await callAI(
     prompt,
-    'Tu ești profesor de religie care oferă feedback personalizat și inspirant pentru fiecare elev în parte.',
+    'Tu ești profesor de religie care oferă feedback personalizat fiecărui elev.',
     0.7,
     400
   );
 }
 
 // ============================================
-// SECȚIUNEA 8: HANDLERS
+// SECȚIUNEA 9: HANDLERS PENTRU REQUESTS
 // ============================================
 
 async function handleStepFeedback(requestData) {
@@ -391,7 +391,7 @@ async function handleStepFeedback(requestData) {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({
         success: false,
-        error: 'Sistemul de feedback AI este temporar indisponibil.',
+        error: 'Sistemul de evaluare AI este temporar indisponibil.',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       }),
     };
@@ -435,7 +435,7 @@ async function handleFinalReport(requestData) {
 }
 
 // ============================================
-// SECȚIUNEA 9: EXPORT HANDLER
+// SECȚIUNEA 10: EXPORT HANDLER PRINCIPAL
 // ============================================
 
 exports.handler = async (event) => {
