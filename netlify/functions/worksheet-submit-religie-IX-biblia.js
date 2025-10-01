@@ -34,19 +34,6 @@ function preValidateAnswer(studentAnswer, acceptedAnswers, minimumRequired) {
   };
 }
 
-function extractStepNumber(question) {
-  if (question.includes('În jurul cărui an')) return 1;
-  if (question.includes('autorul primei cărți')) return 2;
-  if (question.includes('ultima carte a Bibliei')) return 3;
-  if (question.includes('cel mai vechi fragment')) return 4;
-  if (question.includes('materialele pe care erau scrise')) return 5;
-  if (question.includes('două limbi în care')) return 6;
-  if (question.includes('Câte cărți are Biblia')) return 7;
-  if (question.includes('prima traducere completă')) return 8;
-  if (question.includes('povestire sau un personaj')) return 9;
-  return 0;
-}
-
 // ============================================
 // SECȚIUNEA 2: CONFIGURAȚII RĂSPUNSURI AȘTEPTATE
 // ============================================
@@ -193,8 +180,7 @@ FEEDBACK:
 // ============================================
 
 function buildEvaluator1Prompt(stepData, answer) {
-  const stepNumber = extractStepNumber(stepData.question);
-  const config = EXPECTED_ANSWERS[stepNumber];
+  const config = EXPECTED_ANSWERS[stepData.step];
 
   if (!config) {
     return `Evaluează răspunsul elevului la: "${stepData.question}"
@@ -203,7 +189,7 @@ Acordă punctaj între 0-${stepData.points} și oferă feedback.`;
   }
 
   // Pentru întrebarea 9 (personaje biblice) - orice personaj e valid
-  if (stepNumber === 9) {
+  if (stepData.step === 9) {
     return `Tu ești profesor de religie care corectează o fișă de lucru.
 
 ÎNTREBARE: "${stepData.question}"
@@ -259,10 +245,9 @@ FEEDBACK:
 // ============================================
 
 function buildEvaluator2Prompt(stepData, answer, evaluator1Result) {
-  const stepNumber = extractStepNumber(stepData.question);
-  const config = EXPECTED_ANSWERS[stepNumber];
+  const config = EXPECTED_ANSWERS[stepData.step];
 
-  if (!config || stepNumber === 9) {
+  if (!config || stepData.step === 9) {
     return `Tu ești al doilea evaluator. Verifică dacă punctajul ${evaluator1Result.score}/${stepData.points} este corect pentru răspunsul: "${answer}"
 
 Menține sau corectează punctajul.
@@ -390,13 +375,12 @@ async function evaluateWithSecondEvaluator(stepData, answer, evaluator1Result) {
 
 async function evaluateStep(stepData, answer, isCorrect) {
   // Pre-validare pentru debugging
-  const stepNumber = extractStepNumber(stepData.question);
-  const config = EXPECTED_ANSWERS[stepNumber];
+  const config = EXPECTED_ANSWERS[stepData.step];
 
   if (config && config.acceptedAnswers) {
     const preCheck = preValidateAnswer(answer, config.acceptedAnswers, config.minimumRequired);
     console.log('[PRE-VALIDARE]', {
-      step: stepNumber,
+      step: stepData.step,
       question: stepData.question.substring(0, 50) + '...',
       answer: answer,
       matchedCount: preCheck.matchedCount,
@@ -409,7 +393,7 @@ async function evaluateStep(stepData, answer, isCorrect) {
   const evaluator1Result = await evaluateWithFirstEvaluator(stepData, answer, isCorrect);
 
   console.log('[EVALUATOR 1]', {
-    step: stepNumber,
+    step: stepData.step,
     punctaj: evaluator1Result.score,
     maxPoints: stepData.points,
   });
@@ -417,7 +401,7 @@ async function evaluateStep(stepData, answer, isCorrect) {
   // PASUL 2: Pentru răspunsuri scurte, al doilea evaluator verifică când nu e punctaj maxim
   if (stepData.type === 'short' && evaluator1Result.score < stepData.points) {
     console.log('[EVALUATOR 2] Punctaj sub maxim - trimit la al doilea evaluator:', {
-      step: stepNumber,
+      step: stepData.step,
       answer: answer,
       punctajEvaluator1: evaluator1Result.score,
       punctajMaxim: stepData.points,
