@@ -270,23 +270,35 @@ ${config.acceptedAnswers.map((a) => `- ${a.name}`).join('\n')}
 
 EVALUAREA ANTERIOARĂ:
 Punctaj acordat: ${evaluator1Result.score}/${stepData.points} puncte
-Feedback: "${evaluator1Result.feedback}"
 
-SARCINA TA:
-Analizează INDEPENDENT răspunsul elevului. Ignoră evaluarea colegului și judecă singur:
+SARCINA TA - ANALIZĂ STRICTĂ:
 
-1. Identifică fiecare cuvânt din răspunsul elevului
-2. Pentru fiecare cuvânt: "Seamănă cu vreun răspuns corect?" (tolerează greșeli de scriere)
-3. Numără câte răspunsuri corecte ai identificat
-4. Acordă punctaj conform criteriilor
+PASUL 1: Identifică răspunsurile corecte din textul elevului
+- Caută fiecare cuvânt/concept din lista de răspunsuri corecte
+- Tolerează greșeli minore de scriere (1-3 litere diferite)
 
-Dacă identifici ${config.minimumRequired}+ răspunsuri corecte = ${stepData.points} punct(e).
-Dacă colegul a dat punctaj greșit → CORECTEAZĂ fără ezitare.
+PASUL 2: Numără câte răspunsuri corecte ai găsit
+- Trebuie ${config.minimumRequired}+ pentru punctaj maxim
+
+PASUL 3: Aplică regula EXACTĂ
+- ${config.minimumRequired}+ răspunsuri găsite = ${stepData.points} puncte
+- Mai puțin = 0 sau 0.5 puncte
+
+IMPORTANT: Dacă elevul a scris mai multe informații decât cerute, asta NU e greșeală - acordă punctaj maxim dacă minimul e îndeplinit!
+
+Nu penaliza pentru:
+- Informații suplimentare corecte
+- Răspunsuri mai lungi decât cerute
+- Enumerare de mai multe exemple
+
+Penalizează DOAR pentru:
+- Răspunsuri complet greșite
+- Sub numărul minim de răspunsuri corecte
 
 Format:
 DECIZIE: [MENTIN/CORECTEZ]
 PUNCTAJ_FINAL: [0, 0.5, sau ${stepData.points}]
-ARGUMENTARE: [explică ce răspunsuri ai identificat și de ce menții sau corectezi]`;
+ARGUMENTARE: [listează explicit ce răspunsuri corecte ai identificat: "Am găsit: 1) X, 2) Y, 3) Z - total 3 răspunsuri corecte → punctaj maxim"]`;
 }
 
 // ============================================
