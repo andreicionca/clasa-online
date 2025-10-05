@@ -3,10 +3,6 @@
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ============================================
-// JSON SCHEMA - PARTIAL SCORING
-// ============================================
-
 const GRADING_SCHEMA = {
   name: 'GradeShortAnswer',
   schema: {
@@ -34,10 +30,6 @@ const GRADING_SCHEMA = {
   strict: true,
 };
 
-// ============================================
-// CONFIGURAȚII RĂSPUNSURI AȘTEPTATE
-// ============================================
-
 const EXPECTED_ANSWERS = {
   1: {
     question_type: 'biblical_verse',
@@ -46,15 +38,11 @@ const EXPECTED_ANSWERS = {
       'numai Lui să-I slujești',
       'Matei 4,10',
       'Luca 4,8',
-      'Deuteronom 6,13',
-      'Faptele Apostolilor 7,7',
     ],
     minimum_required: 1,
     reference_in_worksheet:
       'Secțiunea "Semnificație": "Domnului Dumnezeului tău să te închini și numai Lui să-I slujești." (Matei 4,10; cf. Luca 4,8)',
     points: 1,
-    accepts_reference_only: true,
-    accepts_any: 1,
   },
   2: {
     question_type: 'list_partial',
@@ -65,8 +53,7 @@ const EXPECTED_ANSWERS = {
     points: 3,
     partial_scoring: true,
     points_per_concept: 1,
-    max_concepts_needed: 3, // ADAUGĂ ACEST CÂMP
-    accepts_any: 3,
+    max_concepts_needed: 3,
   },
   3: {
     question_type: 'list_partial',
@@ -84,8 +71,7 @@ const EXPECTED_ANSWERS = {
     points: 3,
     partial_scoring: true,
     points_per_concept: 1,
-    accepts_any: 3,
-    max_concepts_needed: 3, // ADAUGĂ ACEST CÂMP
+    max_concepts_needed: 3,
   },
   6: {
     question_type: 'proper_name',
@@ -136,10 +122,6 @@ const EXPECTED_ANSWERS = {
   },
 };
 
-// ============================================
-// EVALUARE RĂSPUNSURI SCURTE
-// ============================================
-
 async function evaluateShortAnswer(stepIndex, stepData, answer, student) {
   const config = EXPECTED_ANSWERS[stepIndex];
 
@@ -176,59 +158,54 @@ GRADING:
 
 ${
   isPartialScoring
-    ? `1. PARTIAL SCORING:
-   - IGNORE missing diacritics completely (treat ă=a, ț=t, ș=s, î=i, â=a)
-   - Accept synonyms and paraphrases if meaning matches
-   - Count how many concepts from the list are present
-   - Student needs ${maxConceptsNeeded} correct concepts for FULL score
-   - Score = MIN(concepts_found, ${maxConceptsNeeded}) × ${config.points_per_concept}
-   - Maximum possible score = ${maxScore} points
+    ? `1. COUNTING CONCEPTS:
+   - IGNORE all diacritics (gand=gând, tau=tău, fapta=faptă)
+   - Accept with or without "prin" (gând = prin gând)
+   - Count how many DISTINCT concepts from list are present
 
-2. DECISION:
-   - correct: ${maxConceptsNeeded}+ concepts found → ${maxScore} points
-   - partially_correct: 1-${maxConceptsNeeded - 1} concepts found → proportional score
-   - incorrect: 0 concepts found → 0 points
+2. SCORING FORMULA:
+   concepts_count = number of concepts found
 
-3. CRITICAL: Question only asks for ${maxConceptsNeeded} examples from ${
-        config.concepts.length
-      } available
-   DO NOT penalize for not mentioning all ${config.concepts.length} concepts!`
+   IF concepts_count >= ${maxConceptsNeeded} THEN
+      score = ${maxScore}
+      decision = "correct"
+   ELSE IF concepts_count >= 1 THEN
+      score = concepts_count
+      decision = "partially_correct"
+   ELSE
+      score = 0
+      decision = "incorrect"
+
+3. EXAMPLE:
+   Answer: "gand, cuvant si fapta"
+   Count: 3 concepts found (gand✓ cuvant✓ fapta✓)
+   Result: score=3, decision="correct"
+
+4. Question asks for ${maxConceptsNeeded} from ${config.concepts.length} available - do NOT penalize for not listing all ${config.concepts.length}!`
     : `1. Check if ${config.minimum_required}+ concepts are present
-   - IGNORE missing diacritics completely
+   - IGNORE missing diacritics
    - Tolerate spelling errors (2-3 letters)
-   - Accept reasonable variations
 
 2. BINARY SCORING:
    ✓ Required concepts present → ${maxScore} point(s)
    ✗ Concepts missing → 0 points`
 }
 
-4. DO NOT penalize extra information or longer answers
-
 5. FEEDBACK (Romanian):
 
    If CORRECT:
-   Format:
-   [Confirmare specifică - ce a scris elevul este corect]
+   [Confirmare: ce a scris elevul este corect]
 
    💡 **Știai că...?**
-   [Un fapt interesant DIRECT RELEVANT la întrebare - 1-2 propoziții]
-
-   Guidelines for "Știai că":
-   - DIRECTLY related to question topic
-   - Educational and engaging about worship or St. Augustine
-   - Use appropriate emoji: 💡🕊️✨📖⛪
-   - Short (1-2 sentences)
+   [Fapt interesant DIRECT RELEVANT - 1-2 propoziții]
 
    If PARTIALLY_CORRECT:
-   Format:
-   Ai identificat corect [număr] din ${maxConceptsNeeded} exemple necesare: [ce a scris].
-   Caută în secțiunea indicată din fișă pentru mai multe exemple.
+   Ai identificat corect [număr] din ${maxConceptsNeeded} necesare: [ce a scris].
+   Mai caută în secțiunea indicată.
 
    If INCORRECT:
-   - GUIDE to specific worksheet section
-   - Quote what's written there
-   - Help find the answer
+   - Guide to worksheet section
+   - Help find answer
 
 6. If uncertain → "abstain", score 0`;
 
@@ -251,16 +228,10 @@ ${
   });
 
   const result = JSON.parse(response.choices[0].message.content);
-
-  // Cap score at configured maximum
   result.score = Math.min(result.score, maxScore);
 
   return result;
 }
-
-// ============================================
-// EVALUARE GRILE
-// ============================================
 
 async function evaluateGrila(stepData, answer, isCorrect, student) {
   const score = isCorrect ? stepData.points : 0;
@@ -280,21 +251,14 @@ STUDENT: ${student.name} ${student.surname}
 FEEDBACK (Romanian):
 
 If CORRECT:
-Format:
 [Confirmare specifică - 1 propoziție]
 
 💡 **Știai că...?**
-[Un fapt interesant despre Sf. Augustin sau adorare - 1-2 propoziții]
-
-Guidelines:
-- Directly related to question
-- Educational about worship or St. Augustine
-- Use emoji: 💡🕊️✨📖⛪
-- Short (1-2 sentences)
+[Fapt interesant despre Sf. Augustin sau adorare - 1-2 propoziții]
 
 If INCORRECT:
-- Guide to worksheet section (2-3 sentences)
-- Help find the answer`;
+- Guide to worksheet section
+- Help find answer`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -321,10 +285,6 @@ If INCORRECT:
     concepts_missing: isCorrect ? [] : [stepData.options[stepData.correct_answer]],
   };
 }
-
-// ============================================
-// FLOW PRINCIPAL
-// ============================================
 
 async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
   if (stepData.type === 'grila') {
@@ -369,10 +329,6 @@ async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
     throw error;
   }
 }
-
-// ============================================
-// RAPORT FINAL
-// ============================================
 
 async function generateFinalReport(student, performanceData) {
   const { totalScore, maxScore, stepResults } = performanceData;
@@ -419,10 +375,6 @@ Be specific to their performance. Warm and encouraging tone.`;
 
   return response.choices[0].message.content.trim();
 }
-
-// ============================================
-// HANDLERS
-// ============================================
 
 async function handleStepFeedback(requestData) {
   const { stepIndex, stepData, answer, student, isCorrect } = requestData;
@@ -502,10 +454,6 @@ async function handleFinalReport(requestData) {
     };
   }
 }
-
-// ============================================
-// EXPORT
-// ============================================
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
