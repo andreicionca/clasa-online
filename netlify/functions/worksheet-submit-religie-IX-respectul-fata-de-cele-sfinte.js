@@ -4,7 +4,7 @@ const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ============================================
-// JSON SCHEMA STRICT (Structured Outputs)
+// JSON SCHEMA - BINARY SCORING (0 sau 2)
 // ============================================
 
 const GRADING_SCHEMA = {
@@ -14,174 +14,153 @@ const GRADING_SCHEMA = {
     additionalProperties: false,
     properties: {
       is_correct: { type: 'boolean' },
-      score: { type: 'number', minimum: 0, maximum: 2 },
+      score: {
+        type: 'number',
+        enum: [0, 2], // DOAR 0 sau 2 (binary)
+      },
       decision: {
         type: 'string',
-        enum: ['correct', 'partial', 'incorrect', 'abstain'],
+        enum: ['correct', 'incorrect', 'abstain'], // fără "partial"
       },
-      evidence: { type: 'string', maxLength: 200 },
-      feedback: { type: 'string', maxLength: 240 },
+      concepts_found: {
+        type: 'array',
+        items: { type: 'string' },
+      },
+      concepts_missing: {
+        type: 'array',
+        items: { type: 'string' },
+      },
+      feedback: { type: 'string', maxLength: 600 },
     },
-    required: ['is_correct', 'score', 'decision', 'evidence', 'feedback'],
+    required: ['is_correct', 'score', 'decision', 'concepts_found', 'concepts_missing', 'feedback'],
   },
   strict: true,
 };
 
 // ============================================
-// NORMALIZARE (deterministă)
-// ============================================
-
-function normalizeText(text) {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // elimină diacritice
-    .replace(/[^\w\s]/g, ' ')
-    .trim();
-}
-
-// ============================================
-// CONFIGURAȚII RĂSPUNSURI AȘTEPTATE
+// CONFIGURAȚII
 // ============================================
 
 const EXPECTED_ANSWERS = {
   2: {
+    question_type: 'proper_name',
     concepts: ['Horeb', 'Sinai'],
-    keywords: {
-      Horeb: ['horeb'],
-      Sinai: ['sinai'],
-    },
-    minimumRequired: 1,
+    minimum_required: 1,
+    reference_in_worksheet:
+      "Secțiunea 'Rugul aprins care nu se mistuia': 'Muntele Horeb / Sinai (în Peninsula Sinai, azi Egipt)'",
     points: 2,
   },
   5: {
+    question_type: 'list',
     concepts: ['Paștele', 'Cincizecimea', 'Sărbătoarea Corturilor'],
-    keywords: {
-      Paștele: ['paste', 'pesah', 'pasti'],
-      Cincizecimea: ['cincizecimea', 'shavuot', 'savuot', 'rusalii', 'saptaman', 'saptamanilor'],
-      'Sărbătoarea Corturilor': ['corturilor', 'sucot', 'sukkot', 'cort'],
-    },
-    minimumRequired: 2,
+    minimum_required: 2,
+    reference_in_worksheet:
+      "Secțiunea 'Sfințenia în viața de zi cu zi': 'cele trei mari sărbători de pelerinaj la Ierusalim – Paștele (Pesah), Cincizecimea (Shavuot) și Sărbătoarea Corturilor (Sucot)'",
     points: 2,
   },
   7: {
+    question_type: 'proper_name',
     concepts: ['Ierusalim'],
-    keywords: {
-      Ierusalim: ['ierusalim', 'ierusalem', 'jerusalem'],
-    },
-    minimumRequired: 1,
+    minimum_required: 1,
+    reference_in_worksheet:
+      "Secțiunea 'Sfințenia care nu suportă profanarea': 'Iisus la Ierusalim, în Templu, a alungat negustorii și schimbătorii de bani'",
     points: 2,
   },
   9: {
+    question_type: 'definition',
     concepts: ['lipsă de respect', 'față de cele sfinte'],
-    keywords: {
-      'lipsă de respect': [
-        'lipsa',
-        'lipsă',
-        'lipsa de respect',
-        'lipsă de respect',
-        'jignire',
-        'jignirea',
-        'ofensa',
-        'ofensă',
-      ],
-      'față de cele sfinte': [
-        'sfinte',
-        'sfânt',
-        'sfant',
-        'dumnezeu',
-        'religie',
-        'sacru',
-        'religios',
-      ],
-    },
-    minimumRequired: 2,
+    minimum_required: 2,
+    reference_in_worksheet:
+      "Dicționar de termeni: 'Blasfemie 🚫 – lipsă de respect gravă, prin vorbe sau fapte, față de ceea ce este sfânt.'",
+    correct_definition: 'Lipsă de respect gravă, prin vorbe sau fapte, față de ceea ce este sfânt',
     points: 2,
   },
 };
 
 // ============================================
-// PRE-VALIDARE (înainte de AI)
+// EVALUARE RĂSPUNSURI SCURTE
 // ============================================
 
-function preValidateAnswer(studentAnswer, stepNumber) {
-  const config = EXPECTED_ANSWERS[stepNumber];
-  if (!config) return null;
-
-  const normalized = normalizeText(studentAnswer);
-  const foundConcepts = [];
-
-  // Verifică fiecare concept cerut
-  for (const concept of config.concepts) {
-    const keywords = config.keywords[concept];
-    const found = keywords.some((keyword) => normalized.includes(normalizeText(keyword)));
-    if (found) {
-      foundConcepts.push(concept);
-    }
-  }
-
-  // Dacă toate conceptele necesare sunt prezente → AUTOMAT CORECT
-  if (foundConcepts.length >= config.minimumRequired) {
-    return {
-      autoValidated: true,
-      score: config.points,
-      is_correct: true,
-      decision: 'correct',
-      evidence: `Concepte identificate automat: ${foundConcepts.join(', ')}`,
-      feedback: 'Corect! Ai menționat toate conceptele necesare.',
-    };
-  }
-
-  // Dacă lipsesc concepte → trimite la AI pentru analiză detaliată
-  return null;
-}
-
-// ============================================
-// EVALUARE CU AI (Structured Outputs)
-// ============================================
-
-async function evaluateWithAI(stepData, answer) {
+async function evaluateShortAnswer(stepData, answer, student) {
   const config = EXPECTED_ANSWERS[stepData.step];
 
   if (!config) {
     throw new Error(`Nu există configurație pentru pasul ${stepData.step}`);
   }
 
-  // Construiește referința clară pentru AI
-  const referenceSolution = config.concepts.join(' + ');
-  const gradingRules = `The answer must contain AT LEAST ${
-    config.minimumRequired
-  } of these concepts: ${config.concepts.join(
-    ', '
-  )}. Tolerate spelling errors (2-3 letter differences).`;
+  const prompt = `You are a religion teacher grading a worksheet exercise.
 
-  const prompt = `You are a meticulous short-answer grader for Romanian religion class.
+CONTEXT: Students have the worksheet IN FRONT OF THEM with all answers. This is a reading comprehension exercise.
 
-Rules:
-- Judge ONLY using the reference solution and grading rubric below
-- If the student mentions ${config.minimumRequired}+ required concepts → score = ${
-    config.points
-  }, decision = "correct"
-- If fewer concepts → score = 0, decision = "incorrect"
-- Tolerate spelling errors (2-3 letter differences)
-- If you cannot find clear evidence in the student's answer, respond decision = "abstain" and score = 0
-- Provide feedback in Romanian - be specific, educational, and constructive
-- In "evidence" field, list which concepts you found or didn't find
+QUESTION: "${stepData.question}"
 
-Reference solution (required concepts):
-${referenceSolution}
+WHERE TO FIND THE ANSWER IN WORKSHEET:
+${config.reference_in_worksheet}
 
-Grading rubric:
-${gradingRules}
+REQUIRED CONCEPTS (student must identify ${config.minimum_required} of these):
+${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-Accepted keywords for each concept:
-${config.concepts.map((c) => `- ${c}: ${config.keywords[c].join(', ')}`).join('\n')}
+${
+  config.question_type === 'definition'
+    ? `
+CORRECT DEFINITION FROM WORKSHEET:
+"${config.correct_definition}"
 
-Question asked:
-"${stepData.question}"
+CRITICAL FOR DEFINITIONS:
+- Check if student understood the ACTUAL meaning
+- Watch for NEGATIONS ("nu este", "nu înseamnă") that REVERSE the meaning
+- If they wrote the OPPOSITE → score = 0
+`
+    : ''
+}
 
-Student's answer:
-"${answer}"`;
+STUDENT: ${student.name} ${student.surname}
+
+STUDENT'S ANSWER:
+"${answer}"
+
+GRADING RULES:
+
+1. CONCEPT IDENTIFICATION (focus ONLY on required concepts):
+   - Check if ${config.minimum_required}+ required concepts are present
+   - Tolerate spelling errors (2-3 letter differences)
+   - For definitions: verify they understood the CORRECT meaning (not opposite)
+
+2. BINARY SCORING:
+   ✓ ALL ${config.minimum_required}+ required concepts present + correct meaning → score = 2
+   ✗ Missing concepts OR wrong meaning → score = 0
+
+   NO partial credit. It's all-or-nothing.
+
+3. EXTRA INFORMATION POLICY:
+   DO NOT penalize:
+   - Extra explanations or context
+   - Additional correct information
+   - Personal reflections
+   - Longer, more developed answers
+
+   Examples:
+   ✓ Short answer with all concepts → 2 points
+   ✓ Long answer with all concepts + extra info → ALSO 2 points
+   ✗ Any answer missing required concepts → 0 points
+
+4. EDUCATIONAL FEEDBACK (in Romanian):
+
+   If CORRECT (score = 2):
+   - Acknowledge they found all required concepts in the worksheet
+   - Be specific about what they identified correctly
+   - Brief and encouraging
+
+   If INCORRECT (score = 0):
+   - GUIDE them back to the specific worksheet section
+   - Quote what's written there or give exact location
+   - Help them see what they missed or misunderstood
+
+
+   Focus on LEARNING, not just right/wrong.
+   NO random trivia or unrelated information.
+
+5. If uncertain → decision = "abstain", score = 0`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -190,7 +169,8 @@ Student's answer:
     messages: [
       {
         role: 'system',
-        content: 'You are a precise grader. Provide only the JSON response. Do not add extra text.',
+        content:
+          'You are an educational religion teacher. Guide students back to the source material to help them learn.',
       },
       { role: 'user', content: prompt },
     ],
@@ -204,75 +184,106 @@ Student's answer:
 }
 
 // ============================================
-// EVALUARE GRILE (simplu, fără AI)
+// EVALUARE GRILE (feedback consistent cu răspunsuri scurte)
 // ============================================
 
-async function evaluateGrila(stepData, answer, isCorrect) {
+async function evaluateGrila(stepData, answer, isCorrect, student) {
   const score = isCorrect ? 2 : 0;
 
-  const feedback = isCorrect
-    ? 'Corect!'
-    : `Răspunsul corect este: ${stepData.options[stepData.correct_answer]}`;
+  const prompt = `You are a religion teacher. Students have the worksheet IN FRONT OF THEM.
+
+QUESTION: "${stepData.question}"
+
+OPTIONS:
+${stepData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
+
+CORRECT ANSWER: ${stepData.options[stepData.correct_answer]}
+STUDENT SELECTED: ${stepData.options[answer]}
+RESULT: ${isCorrect ? 'CORRECT' : 'INCORRECT'}
+
+STUDENT: ${student.name} ${student.surname}
+
+Provide EDUCATIONAL feedback in Romanian (2-3 sentences):
+
+If CORRECT:
+- Acknowledge they found the right answer from the worksheet
+- Be specific about what concept they recognized
+- Brief and encouraging
+
+If INCORRECT:
+- GUIDE them back to the worksheet (don't just give the answer)
+- Tell them which section to review
+- Example: "Verifică din nou secțiunea despre [topic] din fișă"
+- Help them learn WHERE to find information
+
+Focus on guiding their learning, not just stating right/wrong.`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    temperature: 0,
+    top_p: 1,
+    max_tokens: 200,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an educational teacher guiding students back to source material.',
+      },
+      { role: 'user', content: prompt },
+    ],
+  });
+
+  const feedback = response.choices[0].message.content.trim();
 
   return {
     score,
     is_correct: isCorrect,
     decision: isCorrect ? 'correct' : 'incorrect',
     feedback,
-    evidence: `Răspuns ales: ${stepData.options[answer]}, Răspuns corect: ${
-      stepData.options[stepData.correct_answer]
-    }`,
+    concepts_found: isCorrect ? [stepData.options[stepData.correct_answer]] : [],
+    concepts_missing: isCorrect ? [] : [stepData.options[stepData.correct_answer]],
   };
 }
 
 // ============================================
-// FLOW PRINCIPAL EVALUARE
+// FLOW PRINCIPAL
 // ============================================
 
-async function evaluateStep(stepData, answer, isCorrect) {
-  // GRILĂ - evaluare simplă, fără AI
+async function evaluateStep(stepData, answer, isCorrect, student) {
   if (stepData.type === 'grila') {
-    return await evaluateGrila(stepData, answer, isCorrect);
-  }
-
-  // RĂSPUNS SCURT
-  // Pas 1: Pre-validare deterministă
-  const preValidation = preValidateAnswer(answer, stepData.step);
-
-  if (preValidation && preValidation.autoValidated) {
-    console.log('[AUTO-VALIDAT]', {
+    console.log('[EVALUARE GRILĂ]', {
       step: stepData.step,
-      answer: answer.substring(0, 50),
-      evidence: preValidation.evidence,
+      student: `${student.name} ${student.surname}`,
+      isCorrect,
     });
-    return preValidation;
+    return await evaluateGrila(stepData, answer, isCorrect, student);
   }
 
-  // Pas 2: Trimite la AI cu Structured Outputs
-  console.log('[TRIMIT LA AI]', {
+  console.log('[EVALUARE RĂSPUNS SCURT]', {
     step: stepData.step,
-    answer: answer.substring(0, 50),
+    student: `${student.name} ${student.surname}`,
+    answer: answer.substring(0, 50) + '...',
   });
 
   try {
-    const aiResult = await evaluateWithAI(stepData, answer);
+    const aiResult = await evaluateShortAnswer(stepData, answer, student);
 
-    // Verifică dacă AI-ul a răspuns "abstain"
     if (aiResult.decision === 'abstain') {
-      console.log('[AI ABSTAIN] - AI nu a putut decide cu certitudine');
+      console.log('[AI ABSTAIN]');
       return {
         score: 0,
         is_correct: false,
         decision: 'abstain',
-        feedback: 'Nu am putut evalua răspunsul cu certitudine. Te rog reformulează mai clar.',
-        evidence: 'Insufficient evidence in student answer',
+        feedback:
+          'Nu am putut evalua cu certitudine răspunsul. Verifică din nou fișa și reformulează mai clar.',
+        concepts_found: [],
+        concepts_missing: EXPECTED_ANSWERS[stepData.step].concepts,
       };
     }
 
-    console.log('[AI EVALUAT]', {
-      step: stepData.step,
+    console.log('[EVALUAT]', {
       decision: aiResult.decision,
       score: aiResult.score,
+      concepts_found: aiResult.concepts_found,
     });
 
     return aiResult;
@@ -283,35 +294,47 @@ async function evaluateStep(stepData, answer, isCorrect) {
 }
 
 // ============================================
-// RAPORT FINAL (simplificat)
+// RAPORT FINAL
 // ============================================
 
 async function generateFinalReport(student, performanceData) {
-  const { totalScore, maxScore } = performanceData;
+  const { totalScore, maxScore, stepResults } = performanceData;
   const percentage = (totalScore / maxScore) * 100;
 
-  const prompt = `Create a brief final report in Romanian for a religion class student.
+  const correctSteps = stepResults.filter((s) => s.score > 0).length;
+  const incorrectSteps = stepResults.filter((s) => s.score === 0).length;
 
-Student: ${student.name} ${student.surname}
-Performance: ${totalScore}/${maxScore} points (${percentage.toFixed(1)}%)
+  const prompt = `You are a religion teacher writing a personalized final report.
 
-Format (3 short sections):
-**Puncte forte:** [What the student did well]
-**De îmbunătățit:** [Constructive suggestions]
-**Știai că...:** [One interesting fact related to the topic]
+STUDENT: ${student.name} ${student.surname}
+PERFORMANCE: ${totalScore}/${maxScore} points (${percentage.toFixed(1)}%)
+Correct: ${correctSteps} | Incorrect: ${incorrectSteps}
 
-Be specific, constructive, and avoid clichés. Maximum 200 characters total.`;
+WORKSHEET: "Respectul față de cele sfinte" (Moses, burning bush, Jewish festivals, Temple, blasphemy)
+
+Create a report in Romanian with 3 sections:
+
+**Puncte forte:**
+[What did they understand well from the worksheet?]
+
+**De îmbunătățit:**
+[Which worksheet sections need review? Be specific.]
+
+**Încurajare:**
+[Personal encouragement about their learning]
+
+Be SPECIFIC to their performance. Reference actual worksheet concepts.
+Maximum 450 characters.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
-    temperature: 0,
+    temperature: 0.3,
     top_p: 1,
-    max_tokens: 150,
+    max_tokens: 250,
     messages: [
       {
         role: 'system',
-        content:
-          'You are a concise religion teacher providing brief, specific feedback in Romanian.',
+        content: 'You are a caring teacher providing personalized feedback in Romanian.',
       },
       { role: 'user', content: prompt },
     ],
@@ -321,7 +344,7 @@ Be specific, constructive, and avoid clichés. Maximum 200 characters total.`;
 }
 
 // ============================================
-// HANDLERS PENTRU REQUESTS
+// HANDLERS
 // ============================================
 
 async function handleStepFeedback(requestData) {
@@ -336,7 +359,7 @@ async function handleStepFeedback(requestData) {
   }
 
   try {
-    const result = await evaluateStep(stepData, answer, isCorrect);
+    const result = await evaluateStep(stepData, answer, isCorrect, student);
 
     return {
       statusCode: 200,
@@ -348,7 +371,8 @@ async function handleStepFeedback(requestData) {
         maxPoints: stepData.points,
         isCorrect: result.is_correct,
         decision: result.decision,
-        evidence: result.evidence,
+        conceptsFound: result.concepts_found,
+        conceptsMissing: result.concepts_missing,
         aiGenerated: true,
       }),
     };
@@ -403,7 +427,7 @@ async function handleFinalReport(requestData) {
 }
 
 // ============================================
-// EXPORT HANDLER PRINCIPAL
+// EXPORT
 // ============================================
 
 exports.handler = async (event) => {
