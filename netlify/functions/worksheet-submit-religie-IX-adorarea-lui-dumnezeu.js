@@ -54,6 +54,7 @@ const EXPECTED_ANSWERS = {
       'Secțiunea "Semnificație": "Domnului Dumnezeului tău să te închini și numai Lui să-I slujești." (Matei 4,10; cf. Luca 4,8)',
     points: 1,
     accepts_reference_only: true,
+    accepts_any: 1,
   },
   2: {
     question_type: 'list_partial',
@@ -64,6 +65,8 @@ const EXPECTED_ANSWERS = {
     points: 3,
     partial_scoring: true,
     points_per_concept: 1,
+    max_concepts_needed: 3, // ADAUGĂ ACEST CÂMP
+    accepts_any: 3,
   },
   3: {
     question_type: 'list_partial',
@@ -82,6 +85,7 @@ const EXPECTED_ANSWERS = {
     partial_scoring: true,
     points_per_concept: 1,
     accepts_any: 3,
+    max_concepts_needed: 3, // ADAUGĂ ACEST CÂMP
   },
   6: {
     question_type: 'proper_name',
@@ -145,19 +149,22 @@ async function evaluateShortAnswer(stepIndex, stepData, answer, student) {
 
   const isPartialScoring = config.partial_scoring === true;
   const maxScore = config.points;
+  const maxConceptsNeeded = config.max_concepts_needed || config.concepts.length;
 
   const prompt = `You are a religion teacher grading a worksheet exercise.
 
 CONTEXT: Students have the worksheet with all content. This is reading comprehension.
 
-QUESTION: "${stepData.question}"
+QUESTION: "${stepData.question}"${
+    isPartialScoring ? ` (asks for ${maxConceptsNeeded} examples)` : ''
+  }
 
 WHERE TO FIND ANSWER:
 ${config.reference_in_worksheet}
 
 ${
   isPartialScoring
-    ? `REQUIRED CONCEPTS (identify as many as possible):`
+    ? `AVAILABLE CONCEPTS (student needs ANY ${maxConceptsNeeded} from this list):`
     : `REQUIRED CONCEPTS (must identify ${config.minimum_required}):`
 }
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
@@ -169,18 +176,25 @@ GRADING:
 
 ${
   isPartialScoring
-    ? `1. PARTIAL SCORING (${config.points_per_concept} point per correct concept):
+    ? `1. PARTIAL SCORING:
+   - IGNORE missing diacritics completely (treat ă=a, ț=t, ș=s, î=i, â=a)
+   - Accept synonyms and paraphrases if meaning matches
    - Count how many concepts from the list are present
-   - Tolerate spelling errors (2-3 letters)
-   - Accept synonyms and paraphrases if meaning is clear
-   - Score = number of concepts found × ${config.points_per_concept}
-   - Maximum score = ${maxScore} points
+   - Student needs ${maxConceptsNeeded} correct concepts for FULL score
+   - Score = MIN(concepts_found, ${maxConceptsNeeded}) × ${config.points_per_concept}
+   - Maximum possible score = ${maxScore} points
 
 2. DECISION:
-   - correct: all ${config.concepts.length} concepts found (${maxScore} points)
-   - partially_correct: some concepts found (1-${maxScore - 1} points)
-   - incorrect: no concepts found (0 points)`
+   - correct: ${maxConceptsNeeded}+ concepts found → ${maxScore} points
+   - partially_correct: 1-${maxConceptsNeeded - 1} concepts found → proportional score
+   - incorrect: 0 concepts found → 0 points
+
+3. CRITICAL: Question only asks for ${maxConceptsNeeded} examples from ${
+        config.concepts.length
+      } available
+   DO NOT penalize for not mentioning all ${config.concepts.length} concepts!`
     : `1. Check if ${config.minimum_required}+ concepts are present
+   - IGNORE missing diacritics completely
    - Tolerate spelling errors (2-3 letters)
    - Accept reasonable variations
 
@@ -189,33 +203,34 @@ ${
    ✗ Concepts missing → 0 points`
 }
 
-3. DO NOT penalize extra information or longer answers
+4. DO NOT penalize extra information or longer answers
 
-4. FEEDBACK (Romanian):
+5. FEEDBACK (Romanian):
 
-   If CORRECT/PARTIALLY_CORRECT:
+   If CORRECT:
    Format:
-   ${
-     isPartialScoring
-       ? '[Confirmare - menționează ce a fost corect și ce a lipsit]'
-       : '[Confirmare specifică - 1 propoziție]'
-   }
+   [Confirmare specifică - ce a scris elevul este corect]
 
    💡 **Știai că...?**
-   [Un fapt interesant DIRECT RELEVANT - 1-2 propoziții]
+   [Un fapt interesant DIRECT RELEVANT la întrebare - 1-2 propoziții]
 
-   Guidelines:
-   - Directly related to question topic
+   Guidelines for "Știai că":
+   - DIRECTLY related to question topic
    - Educational and engaging about worship or St. Augustine
-   - Use emoji: 💡🕊️✨📖⛪
+   - Use appropriate emoji: 💡🕊️✨📖⛪
    - Short (1-2 sentences)
+
+   If PARTIALLY_CORRECT:
+   Format:
+   Ai identificat corect [număr] din ${maxConceptsNeeded} exemple necesare: [ce a scris].
+   Caută în secțiunea indicată din fișă pentru mai multe exemple.
 
    If INCORRECT:
    - GUIDE to specific worksheet section
    - Quote what's written there
    - Help find the answer
 
-5. If uncertain → "abstain", score 0`;
+6. If uncertain → "abstain", score 0`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -224,7 +239,8 @@ ${
     messages: [
       {
         role: 'system',
-        content: 'You are an educational teacher who makes learning engaging and grades fairly.',
+        content:
+          'You are an educational teacher who grades fairly and ignores diacritic/spelling differences.',
       },
       { role: 'user', content: prompt },
     ],
@@ -236,10 +252,8 @@ ${
 
   const result = JSON.parse(response.choices[0].message.content);
 
-  // Ensure score doesn't exceed max
-  if (result.score > maxScore) {
-    result.score = maxScore;
-  }
+  // Cap score at configured maximum
+  result.score = Math.min(result.score, maxScore);
 
   return result;
 }
