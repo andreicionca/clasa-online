@@ -155,21 +155,20 @@ ANSWER: "${answer}"
 GRADING:
 ${
   isPartialScoring
-    ? `- Ignore diacritics completely
+    ? `- Ignore all diacritics
 - Count distinct concepts found
-- Put found concepts in concepts_found array
-- Maximum score: ${maxScore}`
-    : `- Ignore diacritics
-- Check if concepts present
-- Score: ${maxScore} if found, 0 otherwise`
+- Put found concepts in concepts_found array`
+    : `- Ignore all diacritics
+- Check if required concepts present
+- Binary: all or nothing`
 }
 
-FEEDBACK (Romanian):
-- If correct: [confirmare] + 💡 **Știai că...?** [fapt interesant]
-- If partial: Ai identificat [număr] concepte. Caută în fișă.
-- If incorrect: Verifică secțiunea indicată.
+FEEDBACK (Romanian, 1-2 sentences):
+- If CORRECT: Confirm specifically what they wrote correctly
+- If PARTIALLY_CORRECT: State "Ai identificat X din ${maxConceptsNeeded}. Caută în secțiunea [name] din fișă."
+- If INCORRECT: Guide to worksheet section where answer is found
 
-If uncertain → "abstain", score 0`;
+Write ACTUAL feedback text, not placeholders like "[confirmare]".`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -178,8 +177,7 @@ If uncertain → "abstain", score 0`;
     messages: [
       {
         role: 'system',
-        content:
-          'You are an educational teacher who grades fairly and ignores diacritic/spelling differences.',
+        content: 'You are an educational teacher who provides clear, concise feedback.',
       },
       { role: 'user', content: prompt },
     ],
@@ -222,29 +220,19 @@ ${stepData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
 CORRECT: ${stepData.options[stepData.correct_answer]}
 STUDENT SELECTED: ${stepData.options[answer]}
 
-STUDENT: ${student.name} ${student.surname}
-
-FEEDBACK (Romanian):
-
-If CORRECT:
-[Confirmare specifică - 1 propoziție]
-
-💡 **Știai că...?**
-[Fapt interesant despre Sf. Augustin sau adorare - 1-2 propoziții]
-
-If INCORRECT:
-- Guide to worksheet section
-- Help find answer`;
+FEEDBACK (Romanian, 1-2 sentences):
+- If CORRECT: Confirm answer briefly
+- If INCORRECT: Guide to worksheet section where answer can be found`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0,
     top_p: 1,
-    max_tokens: 250,
+    max_tokens: 150,
     messages: [
       {
         role: 'system',
-        content: 'You are an educational teacher who makes learning engaging.',
+        content: 'You are an educational teacher who provides clear, brief feedback.',
       },
       { role: 'user', content: prompt },
     ],
