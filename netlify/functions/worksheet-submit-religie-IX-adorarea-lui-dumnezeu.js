@@ -145,7 +145,7 @@ ${config.reference_in_worksheet}
 ${
   isPartialScoring
     ? `CONCEPTS (student needs ${maxConceptsNeeded}):`
-    : `REQUIRED CONCEPTS (must identify ${config.minimum_required}):`
+    : `ACCEPTABLE CONCEPTS (student needs ANY ${config.minimum_required}):`
 }
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
@@ -158,17 +158,16 @@ ${
     ? `- Ignore all diacritics
 - Count distinct concepts found
 - Put found concepts in concepts_found array`
-    : `- Ignore all diacritics
-- Check if required concepts present
-- Binary: all or nothing`
+    : `- Ignore all diacritics and punctuation (Tolle lege = Tolle, lege)
+- Check if AT LEAST ${config.minimum_required} concept from list is present
+- If found → score ${maxScore}, decision "correct"
+- If not found → score 0, decision "incorrect"
+- DO NOT require ALL concepts, just ${config.minimum_required}`
 }
 
 FEEDBACK (Romanian, 1-2 sentences):
-- If CORRECT: Confirm specifically what they wrote correctly
-- If PARTIALLY_CORRECT: State "Ai identificat X din ${maxConceptsNeeded}. Caută în secțiunea [name] din fișă."
-- If INCORRECT: Guide to worksheet section where answer is found
-
-Write ACTUAL feedback text, not placeholders like "[confirmare]".`;
+- If CORRECT: Confirm what they wrote
+- If INCORRECT: Guide to worksheet section`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
