@@ -326,12 +326,14 @@ async function requestFinalAIReport(totalScore, maxScore, exerciseConfig) {
   const performanceData = {
     totalScore: totalScore,
     maxScore: maxScore,
-    stepResults: Object.values(studentProgress).map((p) => ({
-      score: p.score || 0,
-      maxPoints:
-        worksheetSteps[Object.keys(studentProgress).indexOf(String(p.step_number))].points || 0,
-      feedback: p.feedback || '',
-    })),
+    stepResults: worksheetSteps.map((step, index) => {
+      const progress = studentProgress[index];
+      return {
+        score: progress ? progress.score || 0 : 0,
+        maxPoints: step.points || 0,
+        feedback: progress ? progress.feedback || '' : '',
+      };
+    }),
   };
 
   const studentData = {
