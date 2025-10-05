@@ -4,7 +4,7 @@ const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ============================================
-// JSON SCHEMA - BINARY SCORING (0 sau 2)
+// JSON SCHEMA - BINARY SCORING
 // ============================================
 
 const GRADING_SCHEMA = {
@@ -16,11 +16,11 @@ const GRADING_SCHEMA = {
       is_correct: { type: 'boolean' },
       score: {
         type: 'number',
-        enum: [0, 2], // DOAR 0 sau 2 (binary)
+        enum: [0, 2],
       },
       decision: {
         type: 'string',
-        enum: ['correct', 'incorrect', 'abstain'], // fără "partial"
+        enum: ['correct', 'incorrect', 'abstain'],
       },
       concepts_found: {
         type: 'array',
@@ -90,77 +90,53 @@ async function evaluateShortAnswer(stepData, answer, student) {
 
   const prompt = `You are a religion teacher grading a worksheet exercise.
 
-CONTEXT: Students have the worksheet IN FRONT OF THEM with all answers. This is a reading comprehension exercise.
+CONTEXT: Students have the worksheet with all answers. This is reading comprehension.
 
 QUESTION: "${stepData.question}"
 
-WHERE TO FIND THE ANSWER IN WORKSHEET:
+WHERE TO FIND ANSWER:
 ${config.reference_in_worksheet}
 
-REQUIRED CONCEPTS (student must identify ${config.minimum_required} of these):
+REQUIRED CONCEPTS (must identify ${config.minimum_required}):
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-${
-  config.question_type === 'definition'
-    ? `
-CORRECT DEFINITION FROM WORKSHEET:
-"${config.correct_definition}"
-
-CRITICAL FOR DEFINITIONS:
-- Check if student understood the ACTUAL meaning
-- Watch for NEGATIONS ("nu este", "nu înseamnă") that REVERSE the meaning
-- If they wrote the OPPOSITE → score = 0
-`
-    : ''
-}
-
 STUDENT: ${student.name} ${student.surname}
+ANSWER: "${answer}"
 
-STUDENT'S ANSWER:
-"${answer}"
+GRADING:
 
-GRADING RULES:
-
-1. CONCEPT IDENTIFICATION (focus ONLY on required concepts):
-   - Check if ${config.minimum_required}+ required concepts are present
-   - Tolerate spelling errors (2-3 letter differences)
-   - For definitions: verify they understood the CORRECT meaning (not opposite)
+1. Check if ${config.minimum_required}+ concepts are present
+   - Tolerate spelling errors (2-3 letters)
+   - For definitions: verify correct meaning
 
 2. BINARY SCORING:
-   ✓ ALL ${config.minimum_required}+ required concepts present + correct meaning → score = 2
-   ✗ Missing concepts OR wrong meaning → score = 0
+   ✓ All required concepts + correct meaning → 2 points
+   ✗ Missing concepts OR wrong meaning → 0 points
 
-   NO partial credit. It's all-or-nothing.
+3. DO NOT penalize extra information, explanations, or longer answers
 
-3. EXTRA INFORMATION POLICY:
-   DO NOT penalize:
-   - Extra explanations or context
-   - Additional correct information
-   - Personal reflections
-   - Longer, more developed answers
-
-   Examples:
-   ✓ Short answer with all concepts → 2 points
-   ✓ Long answer with all concepts + extra info → ALSO 2 points
-   ✗ Any answer missing required concepts → 0 points
-
-4. EDUCATIONAL FEEDBACK (in Romanian):
+4. FEEDBACK (Romanian):
 
    If CORRECT (score = 2):
-   - Acknowledge they found all required concepts in the worksheet
-   - Be specific about what they identified correctly
-   - Brief and encouraging
+   Format:
+   [Confirmare specifică - 1 propoziție]
+
+   💡 **Știai că...?**
+   [Un fapt interesant DIRECT RELEVANT la conceptul din întrebare - 1-2 propoziții]
+
+   Guidelines for "Știai că...":
+   - Must be DIRECTLY RELATED to the question's concept
+   - Educational and fascinating
+   - Based on worksheet content or general religious knowledge
+   - Use appropriate emoji (💡🔥✨🕊️⛰️🏛️📖)
+   - Short and engaging
 
    If INCORRECT (score = 0):
-   - GUIDE them back to the specific worksheet section
-   - Quote what's written there or give exact location
-   - Help them see what they missed or misunderstood
+   - GUIDE to specific worksheet section
+   - Quote what's written there
+   - Help them understand what they missed
 
-
-   Focus on LEARNING, not just right/wrong.
-   NO random trivia or unrelated information.
-
-5. If uncertain → decision = "abstain", score = 0`;
+5. If uncertain → "abstain", score 0`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -169,8 +145,7 @@ GRADING RULES:
     messages: [
       {
         role: 'system',
-        content:
-          'You are an educational religion teacher. Guide students back to the source material to help them learn.',
+        content: 'You are an educational teacher who makes learning engaging.',
       },
       { role: 'user', content: prompt },
     ],
@@ -184,49 +159,52 @@ GRADING RULES:
 }
 
 // ============================================
-// EVALUARE GRILE (feedback consistent cu răspunsuri scurte)
+// EVALUARE GRILE
 // ============================================
 
 async function evaluateGrila(stepData, answer, isCorrect, student) {
   const score = isCorrect ? 2 : 0;
 
-  const prompt = `You are a religion teacher. Students have the worksheet IN FRONT OF THEM.
+  const prompt = `You are a religion teacher. Students have the worksheet.
 
 QUESTION: "${stepData.question}"
 
 OPTIONS:
 ${stepData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
 
-CORRECT ANSWER: ${stepData.options[stepData.correct_answer]}
+CORRECT: ${stepData.options[stepData.correct_answer]}
 STUDENT SELECTED: ${stepData.options[answer]}
-RESULT: ${isCorrect ? 'CORRECT' : 'INCORRECT'}
 
 STUDENT: ${student.name} ${student.surname}
 
-Provide EDUCATIONAL feedback in Romanian (2-3 sentences):
+FEEDBACK (Romanian):
 
 If CORRECT:
-- Acknowledge they found the right answer from the worksheet
-- Be specific about what concept they recognized
-- Brief and encouraging
+Format:
+[Confirmare specifică - 1 propoziție]
+
+💡 **Știai că...?**
+[Un fapt interesant DIRECT RELEVANT - 1-2 propoziții]
+
+Guidelines:
+- Directly related to question topic
+- Educational and engaging
+- Use appropriate emoji (💡🔥✨🕊️⛰️🏛️📖)
+- Short (1-2 sentences)
 
 If INCORRECT:
-- GUIDE them back to the worksheet (don't just give the answer)
-- Tell them which section to review
-- Example: "Verifică din nou secțiunea despre [topic] din fișă"
-- Help them learn WHERE to find information
-
-Focus on guiding their learning, not just stating right/wrong.`;
+- Guide to worksheet section (2-3 sentences)
+- Help them find where the answer is in the worksheet`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0,
     top_p: 1,
-    max_tokens: 200,
+    max_tokens: 250,
     messages: [
       {
         role: 'system',
-        content: 'You are an educational teacher guiding students back to source material.',
+        content: 'You are an educational teacher who makes learning engaging.',
       },
       { role: 'user', content: prompt },
     ],
@@ -250,7 +228,7 @@ Focus on guiding their learning, not just stating right/wrong.`;
 
 async function evaluateStep(stepData, answer, isCorrect, student) {
   if (stepData.type === 'grila') {
-    console.log('[EVALUARE GRILĂ]', {
+    console.log('[GRILĂ]', {
       step: stepData.step,
       student: `${student.name} ${student.surname}`,
       isCorrect,
@@ -258,7 +236,7 @@ async function evaluateStep(stepData, answer, isCorrect, student) {
     return await evaluateGrila(stepData, answer, isCorrect, student);
   }
 
-  console.log('[EVALUARE RĂSPUNS SCURT]', {
+  console.log('[RĂSPUNS SCURT]', {
     step: stepData.step,
     student: `${student.name} ${student.surname}`,
     answer: answer.substring(0, 50) + '...',
@@ -268,13 +246,12 @@ async function evaluateStep(stepData, answer, isCorrect, student) {
     const aiResult = await evaluateShortAnswer(stepData, answer, student);
 
     if (aiResult.decision === 'abstain') {
-      console.log('[AI ABSTAIN]');
+      console.log('[ABSTAIN]');
       return {
         score: 0,
         is_correct: false,
         decision: 'abstain',
-        feedback:
-          'Nu am putut evalua cu certitudine răspunsul. Verifică din nou fișa și reformulează mai clar.',
+        feedback: 'Nu am putut evalua cu certitudine. Verifică fișa și reformulează mai clar.',
         concepts_found: [],
         concepts_missing: EXPECTED_ANSWERS[stepData.step].concepts,
       };
@@ -283,12 +260,12 @@ async function evaluateStep(stepData, answer, isCorrect, student) {
     console.log('[EVALUAT]', {
       decision: aiResult.decision,
       score: aiResult.score,
-      concepts_found: aiResult.concepts_found,
+      concepts: aiResult.concepts_found,
     });
 
     return aiResult;
   } catch (error) {
-    console.error('[EROARE AI]', error);
+    console.error('[EROARE]', error);
     throw error;
   }
 }
@@ -304,27 +281,26 @@ async function generateFinalReport(student, performanceData) {
   const correctSteps = stepResults.filter((s) => s.score > 0).length;
   const incorrectSteps = stepResults.filter((s) => s.score === 0).length;
 
-  const prompt = `You are a religion teacher writing a personalized final report.
+  const prompt = `Create a personalized report in Romanian.
 
 STUDENT: ${student.name} ${student.surname}
-PERFORMANCE: ${totalScore}/${maxScore} points (${percentage.toFixed(1)}%)
+SCORE: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)
 Correct: ${correctSteps} | Incorrect: ${incorrectSteps}
 
-WORKSHEET: "Respectul față de cele sfinte" (Moses, burning bush, Jewish festivals, Temple, blasphemy)
+TOPIC: "Respectul față de cele sfinte"
 
-Create a report in Romanian with 3 sections:
+3 sections (max 450 chars total):
 
 **Puncte forte:**
-[What did they understand well from the worksheet?]
+[What they understood well]
 
 **De îmbunătățit:**
-[Which worksheet sections need review? Be specific.]
+[Which sections to review]
 
 **Încurajare:**
-[Personal encouragement about their learning]
+[Personal encouragement]
 
-Be SPECIFIC to their performance. Reference actual worksheet concepts.
-Maximum 450 characters.`;
+Be specific to their performance.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -383,7 +359,7 @@ async function handleStepFeedback(requestData) {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({
         success: false,
-        error: 'Sistemul de evaluare AI este temporar indisponibil.',
+        error: 'Sistemul de evaluare este temporar indisponibil.',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       }),
     };
@@ -414,13 +390,13 @@ async function handleFinalReport(requestData) {
       }),
     };
   } catch (error) {
-    console.error('Eroare raport final:', error);
+    console.error('Eroare raport:', error);
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({
         success: false,
-        error: 'Raportul final nu poate fi generat momentan.',
+        error: 'Raportul nu poate fi generat momentan.',
       }),
     };
   }
