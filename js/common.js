@@ -1119,7 +1119,6 @@ function formatFeedbackText(text) {
   // **bold** → <strong>bold</strong>
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-  // *italic* → <em>italic</em>
   text = text.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
 
   // Line breaks → <br>
