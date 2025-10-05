@@ -206,7 +206,7 @@ ${
 
    Guidelines:
    - Directly related to question topic
-   - Educational and engaging about Sf. Augustin or worship
+   - Educational and engaging about worship or St. Augustine
    - Use emoji: 💡🕊️✨📖⛪
    - Short (1-2 sentences)
 
