@@ -137,16 +137,14 @@ async function evaluateShortAnswer(stepIndex, stepData, answer, student) {
 
 CONTEXT: Students have the worksheet with all content. This is reading comprehension.
 
-QUESTION: "${stepData.question}"${
-    isPartialScoring ? ` (asks for ${maxConceptsNeeded} examples)` : ''
-  }
+QUESTION: "${stepData.question}"
 
 WHERE TO FIND ANSWER:
 ${config.reference_in_worksheet}
 
 ${
   isPartialScoring
-    ? `AVAILABLE CONCEPTS (student needs ANY ${maxConceptsNeeded} from this list):`
+    ? `CONCEPTS (student needs ${maxConceptsNeeded}):`
     : `REQUIRED CONCEPTS (must identify ${config.minimum_required}):`
 }
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
@@ -155,59 +153,23 @@ STUDENT: ${student.name} ${student.surname}
 ANSWER: "${answer}"
 
 GRADING:
-
 ${
   isPartialScoring
-    ? `1. COUNTING CONCEPTS:
-   - IGNORE all diacritics (gand=gând, tau=tău, fapta=faptă)
-   - Accept with or without "prin" (gând = prin gând)
-   - Count how many DISTINCT concepts from list are present
-
-2. SCORING FORMULA:
-   concepts_count = number of concepts found
-
-   IF concepts_count >= ${maxConceptsNeeded} THEN
-      score = ${maxScore}
-      decision = "correct"
-   ELSE IF concepts_count >= 1 THEN
-      score = concepts_count
-      decision = "partially_correct"
-   ELSE
-      score = 0
-      decision = "incorrect"
-
-3. EXAMPLE:
-   Answer: "gand, cuvant si fapta"
-   Count: 3 concepts found (gand✓ cuvant✓ fapta✓)
-   Result: score=3, decision="correct"
-
-4. Question asks for ${maxConceptsNeeded} from ${config.concepts.length} available - do NOT penalize for not listing all ${config.concepts.length}!`
-    : `1. Check if ${config.minimum_required}+ concepts are present
-   - IGNORE missing diacritics
-   - Tolerate spelling errors (2-3 letters)
-
-2. BINARY SCORING:
-   ✓ Required concepts present → ${maxScore} point(s)
-   ✗ Concepts missing → 0 points`
+    ? `- Ignore diacritics completely
+- Count distinct concepts found
+- Put found concepts in concepts_found array
+- Maximum score: ${maxScore}`
+    : `- Ignore diacritics
+- Check if concepts present
+- Score: ${maxScore} if found, 0 otherwise`
 }
 
-5. FEEDBACK (Romanian):
+FEEDBACK (Romanian):
+- If correct: [confirmare] + 💡 **Știai că...?** [fapt interesant]
+- If partial: Ai identificat [număr] concepte. Caută în fișă.
+- If incorrect: Verifică secțiunea indicată.
 
-   If CORRECT:
-   [Confirmare: ce a scris elevul este corect]
-
-   💡 **Știai că...?**
-   [Fapt interesant DIRECT RELEVANT - 1-2 propoziții]
-
-   If PARTIALLY_CORRECT:
-   Ai identificat corect [număr] din ${maxConceptsNeeded} necesare: [ce a scris].
-   Mai caută în secțiunea indicată.
-
-   If INCORRECT:
-   - Guide to worksheet section
-   - Help find answer
-
-6. If uncertain → "abstain", score 0`;
+If uncertain → "abstain", score 0`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -228,8 +190,22 @@ ${
   });
 
   const result = JSON.parse(response.choices[0].message.content);
-  result.score = Math.min(result.score, maxScore);
 
+  if (isPartialScoring && result.concepts_found && result.concepts_found.length > 0) {
+    const conceptsCount = result.concepts_found.length;
+
+    if (conceptsCount >= maxConceptsNeeded) {
+      result.score = maxScore;
+      result.decision = 'correct';
+      result.is_correct = true;
+    } else {
+      result.score = conceptsCount * config.points_per_concept;
+      result.decision = 'partially_correct';
+      result.is_correct = false;
+    }
+  }
+
+  result.score = Math.min(result.score, maxScore);
   return result;
 }
 
