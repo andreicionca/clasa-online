@@ -1112,42 +1112,18 @@ function showConfirmModal(title, message, onConfirm, confirmText = 'Da', cancelT
   setTimeout(() => overlay.classList.add('show'), 10);
 }
 
-// Funcție pentru formatarea feedback-ului cu bullet points
+// Funcție pentru formatarea feedback-ului - DOAR Markdown, fără bullets
 function formatFeedbackText(text) {
   if (!text) return text;
 
-  // Convertește bullet points în liste HTML
-  const lines = text.split('\n');
-  let formattedLines = [];
-  let inList = false;
+  // **bold** → <strong>bold</strong>
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-  for (let line of lines) {
-    const trimmedLine = line.trim();
+  // *italic* → <em>italic</em>
+  text = text.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
 
-    if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
-      if (!inList) {
-        formattedLines.push('<ul>');
-        inList = true;
-      }
-      const listItem = trimmedLine.replace(/^[•-]\s*/, '');
-      formattedLines.push(`<li>${listItem}</li>`);
-    } else if (trimmedLine === '' && inList) {
-      // Linie goală în timpul unei liste
-      continue;
-    } else {
-      if (inList) {
-        formattedLines.push('</ul>');
-        inList = false;
-      }
-      if (trimmedLine !== '') {
-        formattedLines.push(`<p>${trimmedLine}</p>`);
-      }
-    }
-  }
+  // Line breaks → <br>
+  text = text.replace(/\n/g, '<br>');
 
-  if (inList) {
-    formattedLines.push('</ul>');
-  }
-
-  return formattedLines.join('');
+  return text;
 }

@@ -1443,3 +1443,46 @@ body {
     transform: translateX(4px);
   }
 }
+
+/* === FORMATARE MARKDOWN ÎN FEEDBACK === */
+.feedback-text strong,
+.ai-report-content strong,
+.previous-report strong {
+  font-weight: 700;
+  color: inherit;
+}
+
+.feedback-text em,
+.ai-report-content em,
+.previous-report em {
+  font-style: italic;
+  color: inherit;
+}
+
+/* Line breaks clare */
+.feedback-text br,
+.ai-report-content br,
+.previous-report br {
+  display: block;
+  content: '';
+  margin: 0.25em 0;
+}
+
+/* Păstrează spațierea între paragrafe */
+.feedback-text p,
+.ai-report-content p,
+.previous-report p {
+  margin: 0.5em 0;
+}
+
+.feedback-text p:first-child,
+.ai-report-content p:first-child,
+.previous-report p:first-child {
+  margin-top: 0;
+}
+
+.feedback-text p:last-child,
+.ai-report-content p:last-child,
+.previous-report p:last-child {
+  margin-bottom: 0;
+}
