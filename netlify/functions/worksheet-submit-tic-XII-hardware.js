@@ -8,7 +8,7 @@ const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 // ============================================
 
 const EXPECTED_ANSWERS = {
-  // Întrebarea 2 - Componente CPU
+  // Întrebarea 2 - Componente CPU (0-4 puncte)
   1: {
     question_type: 'components',
     concepts: [
@@ -19,14 +19,20 @@ const EXPECTED_ANSWERS = {
       'coordonează execuția instrucțiunilor',
       'efectuează calculele',
     ],
-    minimum_required: 2,
+    scoring_rubric: {
+      0: 'Răspuns greșit sau lipsă completă de informații relevante',
+      1: 'O singură componentă menționată fără rol',
+      2: 'Ambele componente menționate dar fără roluri SAU o componentă cu rol corect',
+      3: 'Ambele componente + un singur rol SAU distribuție parțială (ex: UC cu rol + UAL fără)',
+      4: 'Ambele componente (UC și UAL) cu ambele roluri specificate corect',
+    },
     reference_in_worksheet:
       "Secțiunea '1️⃣ Procesorul (CPU)': 'UC (Unitatea de Control) – coordonează execuția instrucțiunilor. UAL (Unitatea Aritmetică și Logică) – efectuează calculele.'",
     points: 4,
     requires_both_components: true,
   },
 
-  // Întrebarea 4 - RAM
+  // Întrebarea 4 - RAM (0-2 puncte)
   3: {
     question_type: 'definition',
     concepts: [
@@ -36,13 +42,17 @@ const EXPECTED_ANSWERS = {
       'se golește la oprire',
       'pierde conținutul',
     ],
-    minimum_required: 2,
+    scoring_rubric: {
+      0: 'Răspuns greșit sau lipsă completă',
+      1: 'Un singur concept menționat corect (ex: doar "temporară" sau doar "volatilă")',
+      2: 'Minimum 2 concepte corecte menționate (ex: temporară + volatilă SAU spațiu lucru + se golește)',
+    },
     reference_in_worksheet:
       "Secțiunea '2️⃣ Memoria RAM': 'Memoria RAM este acel spațiu temporar de lucru. Când oprești calculatorul, RAM-ul se golește (este volatilă).'",
     points: 2,
   },
 
-  // Întrebarea 6 - HDD vs SSD
+  // Întrebarea 6 - HDD vs SSD (0-2 puncte)
   5: {
     question_type: 'comparison',
     concepts: [
@@ -56,13 +66,17 @@ const EXPECTED_ANSWERS = {
       'fără părți mobile',
       'memorie electronică',
     ],
-    minimum_required: 3,
+    scoring_rubric: {
+      0: 'Răspuns greșit sau lipsă completă',
+      1: 'Menționează doar un tip de stocare SAU o singură diferență vagă',
+      2: 'Menționează ambele tehnologii cu minimum o diferență tehnică clară pentru fiecare',
+    },
     reference_in_worksheet:
       "Secțiunea '3️⃣ Stocarea (HDD / SSD)': 'HDD are discuri metalice care se învârt și un ac magnetic. SSD nu are părți care se mișcă; păstrează datele în cipuri electronice.'",
     points: 2,
   },
 
-  // Întrebarea 7 - Nuclee procesor
+  // Întrebarea 7 - Nuclee procesor (0-2 puncte)
   6: {
     question_type: 'influence',
     concepts: [
@@ -72,13 +86,17 @@ const EXPECTED_ANSWERS = {
       'executare paralelă',
       'mai multe aplicații',
     ],
-    minimum_required: 2,
+    scoring_rubric: {
+      0: 'Răspuns greșit sau lipsă completă',
+      1: 'Menționează nucleele dar fără legătură clară cu performanța',
+      2: 'Explică corect legătura: mai multe nuclee = sarcini simultane/multitasking',
+    },
     reference_in_worksheet:
       "Secțiunea '1️⃣ Procesorul (CPU)': 'Numărul de nuclee (cores) – arată câte sarcini pot fi executate simultan. Mai multe nuclee = multitasking mai bun.'",
     points: 2,
   },
 
-  // Întrebarea 9 - Placă video
+  // Întrebarea 9 - Placă video (0-2 puncte)
   8: {
     question_type: 'comparison',
     concepts: [
@@ -90,13 +108,17 @@ const EXPECTED_ANSWERS = {
       'VRAM propriu',
       'memorie proprie',
     ],
-    minimum_required: 3,
+    scoring_rubric: {
+      0: 'Răspuns greșit sau lipsă completă',
+      1: 'Menționează doar un tip de placă video SAU o diferență incompletă',
+      2: 'Menționează ambele tipuri (integrată vs dedicată) cu minimum o caracteristică pentru fiecare',
+    },
     reference_in_worksheet:
       "Secțiunea '4️⃣ Placa video (GPU)': 'Placa integrată este inclusă în procesor, folosește RAM-ul sistemului. Placa dedicată este separată, cu memorie proprie (VRAM).'",
     points: 2,
   },
 
-  // Întrebarea 11 - Comparație sisteme pentru jocuri
+  // Întrebarea 11 - Comparație sisteme pentru jocuri (0-4 puncte)
   10: {
     question_type: 'system_comparison',
     concepts: [
@@ -109,7 +131,13 @@ const EXPECTED_ANSWERS = {
       'SSD NVMe',
       'încărcare rapidă',
     ],
-    minimum_required: 3,
+    scoring_rubric: {
+      0: 'Răspuns greșit sau alege sistemul incorect',
+      1: 'Alege S1 corect dar fără niciun argument tehnic valid',
+      2: 'Alege S1 cu un singur argument tehnic valid (ex: doar procesor)',
+      3: 'Alege S1 cu două argumente tehnice valide (ex: procesor + GPU)',
+      4: 'Alege S1 cu trei argumente tehnice clare și complete (procesor + GPU + stocare)',
+    },
     reference_in_worksheet:
       'Secțiunile despre toate componentele: procesor Ryzen 7 > i3, placă video dedicată pentru jocuri, SSD NVMe pentru viteză.',
     points: 4,
@@ -128,7 +156,7 @@ async function evaluateShortAnswer(stepData, answer, student, stepIndex) {
     throw new Error(`Nu există configurație pentru pasul ${stepIndex}`);
   }
 
-  const prompt = `Ești profesor de TIC (Competențe digitale) și corectezi un test despre hardware și performanță.
+  const prompt = `Ești profesor de TIC (Competențe digitale) și corectezi un test despre hardware și performanță cu SCORING PARȚIAL.
 
 CONTEXT: Elevii au lecția completă cu toate răspunsurile. Aceasta este verificare de înțelegere pentru pregătirea BAC-ului.
 
@@ -137,70 +165,112 @@ CONTEXT: Elevii au lecția completă cu toate răspunsurile. Aceasta este verifi
 UNDE SE GĂSEȘTE RĂSPUNSUL ÎN LECȚIE:
 ${config.reference_in_worksheet}
 
-CONCEPTE NECESARE (trebuie să identifice ${config.minimum_required}):
+CONCEPTE NECESARE:
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-${
-  config.requires_both_components
-    ? '⚠️ ATENȚIE: Trebuie să menționeze AMBELE componente și rolurile lor!'
-    : ''
-}
-${config.requires_three_arguments ? '⚠️ ATENȚIE: Trebuie să enumere TREI argumente clare!' : ''}
+⭐ SISTEM DE PUNCTAJ PARȚIAL (0-${config.points} puncte):
+${Object.entries(config.scoring_rubric)
+  .map(([score, desc]) => `${score} puncte: ${desc}`)
+  .join('\n')}
 
 ELEV: ${student.name} ${student.surname} (Clasa XII)
 RĂSPUNS: "${answer}"
 
-REGULI EVALUARE STRICTE (stil BAC):
+REGULI EVALUARE:
 
-1. Verifică dacă ${config.minimum_required}+ concepte tehnice sunt prezente și corecte
+1. ACORDĂ PUNCTAJ GRADUAL bazat pe rubrica de mai sus
    - Tolerează greșeli minore de ortografie (max 2 litere)
    - Ignoră diacriticele (ă=a, ș=s, ț=t, î=i)
-   - Pentru comparații: ambele aspecte trebuie menționate
-   - Pentru componente: nume + rol pentru fiecare
+   - Evaluează ce este prezent, nu ce lipsește
+   - Creditează concepte tehnice corecte chiar dacă incomplete
 
-2. SCORING BINAR (ca la BAC):
-   ✓ Toate conceptele necesare + explicații clare → ${config.points} puncte
-   ✗ Lipsesc concepte SAU explicații incomplete → 0 puncte
+2. EXEMPLE CONCRETE pentru acest tip de întrebare:
 
-   Nu există punctaj parțial!
+${
+  config.question_type === 'components'
+    ? `
+   EXEMPLU 1: "UC și UAL"
+   → 2 puncte (ambele componente, dar fără roluri)
+
+   EXEMPLU 2: "UC coordonează și UAL face calcule"
+   → 4 puncte (ambele componente + ambele roluri)
+
+   EXEMPLU 3: "UC coordonează instrucțiunile"
+   → 2 puncte (o componentă cu rol complet)
+
+   EXEMPLU 4: "UC și UAL coordonează"
+   → 2 puncte (ambele componente dar un singur rol parțial)`
+    : ''
+}
+
+${
+  config.question_type === 'comparison'
+    ? `
+   EXEMPLU 1: "HDD are discuri"
+   → 1 punct (un singur tip menționat)
+
+   EXEMPLU 2: "HDD are discuri, SSD are cipuri"
+   → 2 puncte (ambele tipuri cu caracteristici)`
+    : ''
+}
+
+${
+  config.question_type === 'system_comparison'
+    ? `
+   EXEMPLU 1: "S1"
+   → 1 punct (alegere corectă, fără argumente)
+
+   EXEMPLU 2: "S1 are procesor mai bun"
+   → 2 puncte (un argument)
+
+   EXEMPLU 3: "S1 are Ryzen 7 și placă video RTX"
+   → 3 puncte (două argumente)
+
+   EXEMPLU 4: "S1 are Ryzen 7, RTX 3060, și SSD NVMe"
+   → 4 puncte (trei argumente complete)`
+    : ''
+}
 
 3. Nu penaliza:
+   - Răspunsuri mai detaliate decât cerința minimă
    - Informații tehnice suplimentare corecte
    - Exemple concrete (ex: nume de procesoare)
-   - Răspunsuri mai detaliate decât cerința minimă
 
-4. FEEDBACK TEHNIC (în română, pentru elevi de liceu):
+4. FEEDBACK CONSTRUCTIV (în română, pentru elevi de liceu):
 
-   Dacă CORECT (score = ${config.points}):
+   Pentru orice punctaj:
    Format:
-   ✅ [Confirmare specifică tehnică - 1 propoziție]
 
-   💡 **Extra info:**
-   [Un detaliu tehnic util pentru BAC, legat direct de întrebare - 1-2 propoziții]
+   [Emoji status] **Punctaj: X/${config.points} puncte**
+   [Evaluare specifică - ce este corect]
 
-   Exemple de extra info:
-   - Pentru CPU: "La BAC apar des comparații între i3/i5/i7 sau Ryzen 3/5/7"
-   - Pentru RAM: "DDR5 este mai nouă decât DDR4, deci mai performantă"
-   - Pentru stocare: "SSD NVMe este mai rapid decât SSD SATA"
-   - Pentru GPU: "Plăcile dedicate se măsoară în GB VRAM"
+   ${
+     config.points > 2
+       ? `
+   💡 **Pentru punctaj maxim:**
+   [Ce trebuie adăugat pentru a ajunge la ${config.points} puncte - specific și clar]
+   `
+       : ''
+   }
 
-   Dacă INCORECT (score = 0):
-   Format:
-   ❌ [Ce lipsește sau este greșit - specific]
+   📖 **Revizuiește:**
+   [Secțiunea exactă din lecție + ce concept lipsește]
 
-   📖 **Unde găsești:**
-   [Secțiunea exactă din lecție + ce trebuie să conțină răspunsul]
+   Emoji-uri pentru status:
+   - 0 puncte: ❌
+   - 1 punct (din 2): ⚠️
+   - 1-2 puncte (din 4): ⚠️
+   - 2 puncte (din 2): ✅
+   - 3 puncte (din 4): 🔸
+   - 4 puncte (din 4): ✅
 
-   💭 **Sfat:**
-   [Un indiciu concret pentru a răspunde corect]
-
-5. Dacă ești nesigur sau răspunsul este ambiguu → "abstain", score 0
+5. Dacă ești nesigur → "abstain", score 0
 
 Răspunde DOAR cu JSON în acest format exact:
 {
-  "is_correct": true sau false,
-  "score": 0 sau ${config.points},
-  "decision": "correct" sau "incorrect" sau "abstain",
+  "is_correct": true (dacă score = max) sau false,
+  "score": număr între 0 și ${config.points},
+  "decision": "correct" sau "partial" sau "incorrect" sau "abstain",
   "concepts_found": ["concept1", "concept2"],
   "concepts_missing": ["concept3"],
   "feedback": "feedback tehnic în română, max 600 caractere"
@@ -222,7 +292,27 @@ Răspunde DOAR cu JSON în acest format exact:
       throw new Error('Răspuns invalid de la AI');
     }
 
-    return JSON.parse(jsonMatch[0]);
+    const result = JSON.parse(jsonMatch[0]);
+
+    // Validare score în intervalul corect
+    if (result.score < 0 || result.score > config.points) {
+      console.warn(`Score invalid: ${result.score}, setat la 0`);
+      result.score = 0;
+    }
+
+    // Ajustare decision bazat pe score
+    if (result.score === config.points) {
+      result.is_correct = true;
+      result.decision = 'correct';
+    } else if (result.score > 0) {
+      result.is_correct = false;
+      result.decision = 'partial';
+    } else {
+      result.is_correct = false;
+      result.decision = 'incorrect';
+    }
+
+    return result;
   } catch (error) {
     console.error('[EROARE GEMINI]', error);
     throw error;
@@ -252,7 +342,7 @@ FEEDBACK TEHNIC (în română):
 
 Dacă CORECT:
 Format:
-✅ [Confirmare scurtă]
+✅ **Corect!**
 
 💡 **Extra info:**
 [Un detaliu tehnic util pentru BAC - 1 propoziție]
@@ -264,8 +354,8 @@ Exemple:
 
 Dacă INCORECT:
 Format:
-❌ [Ce a greșit]
-✅ Corect: [răspunsul corect]
+❌ **Incorect**
+✅ **Corect era:** [răspunsul corect]
 📖 [În ce secțiune din lecție se găsește - 1 propoziție]
 
 Ton: profesional dar prietenos, specific pentru elevi de liceu care se pregătesc pentru BAC.
@@ -303,7 +393,7 @@ Max 400 caractere.`;
 async function evaluateStep(stepData, answer, isCorrect, student, stepIndex) {
   if (stepData.type === 'grila') {
     console.log('[GRILĂ]', {
-      step: stepIndex, // acum avem indexul
+      step: stepIndex,
       student: `${student.name} ${student.surname}`,
       isCorrect,
     });
@@ -311,7 +401,7 @@ async function evaluateStep(stepData, answer, isCorrect, student, stepIndex) {
   }
 
   console.log('[RĂSPUNS SCURT]', {
-    step: stepIndex, // și aici
+    step: stepIndex,
     student: `${student.name} ${student.surname}`,
     answer: answer.substring(0, 50) + '...',
   });
@@ -328,13 +418,14 @@ async function evaluateStep(stepData, answer, isCorrect, student, stepIndex) {
         feedback:
           '⚠️ Răspunsul nu este suficient de clar. Revizuiește lecția și reformulează folosind termenii tehnici corecți.',
         concepts_found: [],
-        concepts_missing: EXPECTED_ANSWERS[stepData.step]?.concepts || [],
+        concepts_missing: EXPECTED_ANSWERS[stepIndex]?.concepts || [],
       };
     }
 
     console.log('[EVALUAT]', {
       decision: aiResult.decision,
       score: aiResult.score,
+      maxScore: stepData.points,
       concepts: aiResult.concepts_found,
     });
 
@@ -353,35 +444,43 @@ async function generateFinalReport(student, performanceData) {
   const { totalScore, maxScore, stepResults } = performanceData;
   const percentage = (totalScore / maxScore) * 100;
 
-  const correctSteps = stepResults.filter((s) => s.score > 0).length;
+  const correctSteps = stepResults.filter((s) => s.score === s.maxPoints).length;
+  const partialSteps = stepResults.filter((s) => s.score > 0 && s.score < s.maxPoints).length;
   const incorrectSteps = stepResults.filter((s) => s.score === 0).length;
 
   const prompt = `Creează un raport personalizat de evaluare pentru BAC TIC.
 
 ELEV: ${student.name} ${student.surname} (Clasa XII)
 PUNCTAJ FINAL: ${totalScore}/${maxScore} puncte (${percentage.toFixed(1)}%)
-Răspunsuri corecte: ${correctSteps} | Răspunsuri incorecte: ${incorrectSteps}
+
+DISTRIBUȚIE:
+- Răspunsuri complete: ${correctSteps}
+- Răspunsuri parțiale: ${partialSteps}
+- Răspunsuri incorecte: ${incorrectSteps}
 
 TEMA: "Hardware & Performanță – CPU, RAM, Stocare, GPU"
 
-Creează 3 secțiuni concise și utile (max 500 caractere total):
+Creează 3 secțiuni concise și utile (max 600 caractere total):
 
 **✅ Puncte forte:**
 [Ce componente hardware a înțeles bine - specific și tehnic]
 
-**📚 De revizuit:**
-[Care secțiuni din lecție trebuie recitite - specific: CPU/RAM/Stocare/GPU]
+**📚 De îmbunătățit:**
+[Ce concepte trebuie completate pentru punctaj maxim - specific: unde să fie mai detaliat]
 
 **🎯 Sfat pentru BAC:**
-[Un sfat concret și motivant pentru pregătirea examenului]
+[Un sfat concret și motivant pentru pregătirea examenului - specific pentru hardware]
 
 Ton: profesional, specific tehnic, motivant.
-Fii direct și util - e pentru pregătire BAC, nu pentru note generale.`;
+Menționează că răspunsurile parțiale arată înțelegere, dar trebuie completate cu detalii tehnice.`;
 
   try {
     const response = await gemini.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
 
     return response.text.trim();
@@ -418,7 +517,7 @@ async function handleStepFeedback(requestData) {
         feedback: result.feedback,
         maxPoints: stepData.points,
         isCorrect: result.is_correct,
-        decision: result.decision,
+        decision: result.decision, // poate fi: correct, partial, incorrect, abstain
         conceptsFound: result.concepts_found,
         conceptsMissing: result.concepts_missing,
         aiGenerated: true,
