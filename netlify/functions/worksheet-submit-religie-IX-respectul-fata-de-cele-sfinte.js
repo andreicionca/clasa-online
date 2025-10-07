@@ -1,41 +1,7 @@
 // netlify/functions/worksheet-submit-religie-IX-respectul-fata-de-cele-sfinte.js
 
-const OpenAI = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// ============================================
-// JSON SCHEMA - BINARY SCORING
-// ============================================
-
-const GRADING_SCHEMA = {
-  name: 'GradeShortAnswer',
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      is_correct: { type: 'boolean' },
-      score: {
-        type: 'number',
-        enum: [0, 2],
-      },
-      decision: {
-        type: 'string',
-        enum: ['correct', 'incorrect', 'abstain'],
-      },
-      concepts_found: {
-        type: 'array',
-        items: { type: 'string' },
-      },
-      concepts_missing: {
-        type: 'array',
-        items: { type: 'string' },
-      },
-      feedback: { type: 'string', maxLength: 600 },
-    },
-    required: ['is_correct', 'score', 'decision', 'concepts_found', 'concepts_missing', 'feedback'],
-  },
-  strict: true,
-};
+const { GoogleGenAI } = require('@google/genai');
+const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // ============================================
 // CONFIGURAȚII
@@ -88,74 +54,88 @@ async function evaluateShortAnswer(stepData, answer, student) {
     throw new Error(`Nu există configurație pentru pasul ${stepData.step}`);
   }
 
-  const prompt = `You are a religion teacher grading a worksheet exercise.
+  const prompt = `Ești profesor de religie și corectezi o fișă de lucru.
 
-CONTEXT: Students have the worksheet with all answers. This is reading comprehension.
+CONTEXT: Elevii au fișa cu toate răspunsurile. Aceasta este verificare de înțelegere.
 
-QUESTION: "${stepData.question}"
+ÎNTREBARE: "${stepData.question}"
 
-WHERE TO FIND ANSWER:
+UNDE SE GĂSEȘTE RĂSPUNSUL:
 ${config.reference_in_worksheet}
 
-REQUIRED CONCEPTS (must identify ${config.minimum_required}):
+CONCEPTE NECESARE (trebuie să identifice ${config.minimum_required}):
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-STUDENT: ${student.name} ${student.surname}
-ANSWER: "${answer}"
+ELEV: ${student.name} ${student.surname}
+RĂSPUNS: "${answer}"
 
-GRADING:
+REGULI EVALUARE:
 
-1. Check if ${config.minimum_required}+ concepts are present
-   - Tolerate spelling errors (2-3 letters)
-   - For definitions: verify correct meaning
+1. Verifică dacă ${config.minimum_required}+ concepte sunt prezente
+   - Tolerează greșeli de ortografie (2-3 litere)
+   - Ignoră toate diacriticele (ă=a, ș=s, ț=t, î=i)
+   - Pentru definiții: verifică sensul corect
 
-2. BINARY SCORING:
-   ✓ All required concepts + correct meaning → 2 points
-   ✗ Missing concepts OR wrong meaning → 0 points
+2. SCORING BINAR:
+   ✓ Toate conceptele necesare + sens corect → 2 puncte
+   ✗ Lipsesc concepte SAU sens greșit → 0 puncte
 
-3. DO NOT penalize extra information, explanations, or longer answers
+3. NU penaliza informații extra, explicații sau răspunsuri mai lungi
 
-4. FEEDBACK (Romanian):
+4. FEEDBACK (în română):
 
-   If CORRECT (score = 2):
+   Dacă CORECT (score = 2):
    Format:
    [Confirmare specifică - 1 propoziție]
 
    💡 **Știai că...?**
    [Un fapt interesant DIRECT RELEVANT la conceptul din întrebare - 1-2 propoziții]
 
-   Guidelines for "Știai că...":
-   - Must be DIRECTLY RELATED to the question's concept
-   - Educational and fascinating
-   - Based on worksheet content or general religious knowledge
-   - Use appropriate emoji (💡🔥✨🕊️⛰️🏛️📖)
-   - Short and engaging
+   Ghid pentru "Știai că...":
+   - Trebuie să fie DIRECT LEGAT de conceptul din întrebare
+   - Educațional și fascinant
+   - Bazat pe conținutul fișei sau cunoștințe religioase generale
+   - Folosește emoji potrivit (💡🔥✨🕊️⛰️🏛️📖)
+   - Scurt și captivant
 
-   If INCORRECT (score = 0):
-   - GUIDE to specific worksheet section
-   - Quote what's written there
-   - Help them understand what they missed
+   Dacă INCORECT (score = 0):
+   - Ghidează către secțiunea specifică din fișă
+   - Citează ce este scris acolo
+   - Ajută-l să înțeleagă ce a ratat
 
-5. If uncertain → "abstain", score 0`;
+5. Dacă ești nesigur → "abstain", score 0
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0,
-    top_p: 1,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an educational teacher who makes learning engaging.',
+Răspunde DOAR cu JSON în acest format exact:
+{
+  "is_correct": true sau false,
+  "score": 0 sau 2,
+  "decision": "correct" sau "incorrect" sau "abstain",
+  "concepts_found": ["concept1", "concept2"],
+  "concepts_missing": ["concept3"],
+  "feedback": "feedback în română, max 600 caractere"
+}`;
+
+  try {
+    const response = await gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
       },
-      { role: 'user', content: prompt },
-    ],
-    response_format: {
-      type: 'json_schema',
-      json_schema: GRADING_SCHEMA,
-    },
-  });
+    });
 
-  return JSON.parse(response.choices[0].message.content);
+    const responseText = response.text;
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      throw new Error('Răspuns invalid de la AI');
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error('[EROARE GEMINI]', error);
+    throw error;
+  }
 }
 
 // ============================================
@@ -165,61 +145,60 @@ GRADING:
 async function evaluateGrila(stepData, answer, isCorrect, student) {
   const score = isCorrect ? 2 : 0;
 
-  const prompt = `You are a religion teacher. Students have the worksheet.
+  const prompt = `Ești profesor de religie. Elevii au fișa de lucru.
 
-QUESTION: "${stepData.question}"
+ÎNTREBARE: "${stepData.question}"
 
-OPTIONS:
+OPȚIUNI:
 ${stepData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
 
-CORRECT: ${stepData.options[stepData.correct_answer]}
-STUDENT SELECTED: ${stepData.options[answer]}
+CORECT: ${stepData.options[stepData.correct_answer]}
+ELEVUL A ALES: ${stepData.options[answer]}
 
-STUDENT: ${student.name} ${student.surname}
+ELEV: ${student.name} ${student.surname}
 
-FEEDBACK (Romanian):
+FEEDBACK (în română):
 
-If CORRECT:
+Dacă CORECT:
 Format:
 [Confirmare specifică - 1 propoziție]
 
 💡 **Știai că...?**
 [Un fapt interesant DIRECT RELEVANT - 1-2 propoziții]
 
-Guidelines:
-- Directly related to question topic
-- Educational and engaging
-- Use appropriate emoji (💡🔥✨🕊️⛰️🏛️📖)
-- Short (1-2 sentences)
+Ghid:
+- Direct legat de subiectul întrebării
+- Educațional și captivant
+- Folosește emoji potrivit (💡🔥✨🕊️⛰️🏛️📖)
+- Scurt (1-2 propoziții)
 
-If INCORRECT:
-- Guide to worksheet section (2-3 sentences)
-- Help them find where the answer is in the worksheet`;
+Dacă INCORECT:
+- Ghidează către secțiunea din fișă (2-3 propoziții)
+- Ajută-l să găsească unde este răspunsul în fișă`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0,
-    top_p: 1,
-    max_tokens: 250,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an educational teacher who makes learning engaging.',
+  try {
+    const response = await gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
       },
-      { role: 'user', content: prompt },
-    ],
-  });
+    });
 
-  const feedback = response.choices[0].message.content.trim();
+    const feedback = response.text.trim();
 
-  return {
-    score,
-    is_correct: isCorrect,
-    decision: isCorrect ? 'correct' : 'incorrect',
-    feedback,
-    concepts_found: isCorrect ? [stepData.options[stepData.correct_answer]] : [],
-    concepts_missing: isCorrect ? [] : [stepData.options[stepData.correct_answer]],
-  };
+    return {
+      score,
+      is_correct: isCorrect,
+      decision: isCorrect ? 'correct' : 'incorrect',
+      feedback,
+      concepts_found: isCorrect ? [stepData.options[stepData.correct_answer]] : [],
+      concepts_missing: isCorrect ? [] : [stepData.options[stepData.correct_answer]],
+    };
+  } catch (error) {
+    console.error('[EROARE GEMINI]', error);
+    throw error;
+  }
 }
 
 // ============================================
@@ -281,42 +260,38 @@ async function generateFinalReport(student, performanceData) {
   const correctSteps = stepResults.filter((s) => s.score > 0).length;
   const incorrectSteps = stepResults.filter((s) => s.score === 0).length;
 
-  const prompt = `Create a personalized report in Romanian.
+  const prompt = `Creează un raport personalizat în română.
 
-STUDENT: ${student.name} ${student.surname}
-SCORE: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)
-Correct: ${correctSteps} | Incorrect: ${incorrectSteps}
+ELEV: ${student.name} ${student.surname}
+PUNCTAJ: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)
+Corecte: ${correctSteps} | Greșite: ${incorrectSteps}
 
-TOPIC: "Respectul față de cele sfinte"
+SUBIECT: "Respectul față de cele sfinte"
 
-3 sections (max 450 chars total):
+Creează 3 secțiuni scurte (max 450 caractere total):
 
 **Puncte forte:**
-[What they understood well]
+[Ce au înțeles bine]
 
 **De îmbunătățit:**
-[Which sections to review]
+[Care secțiuni să le revizuiască]
 
 **Încurajare:**
-[Personal encouragement]
+[Încurajare personalizată]
 
-Be specific to their performance.`;
+Fii specific pentru performanța lor.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0.3,
-    top_p: 1,
-    max_tokens: 250,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a caring teacher providing personalized feedback in Romanian.',
-      },
-      { role: 'user', content: prompt },
-    ],
-  });
+  try {
+    const response = await gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
 
-  return response.choices[0].message.content.trim();
+    return response.text.trim();
+  } catch (error) {
+    console.error('[EROARE GEMINI]', error);
+    throw error;
+  }
 }
 
 // ============================================
