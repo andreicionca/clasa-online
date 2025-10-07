@@ -121,11 +121,11 @@ const EXPECTED_ANSWERS = {
 // EVALUARE RĂSPUNSURI SCURTE
 // ============================================
 
-async function evaluateShortAnswer(stepData, answer, student) {
-  const config = EXPECTED_ANSWERS[stepData.step];
+async function evaluateShortAnswer(stepData, answer, student, stepIndex) {
+  const config = EXPECTED_ANSWERS[stepIndex];
 
   if (!config) {
-    throw new Error(`Nu există configurație pentru pasul ${stepData.step}`);
+    throw new Error(`Nu există configurație pentru pasul ${stepIndex}`);
   }
 
   const prompt = `Ești profesor de TIC (Competențe digitale) și corectezi un test despre hardware și performanță.
@@ -300,10 +300,10 @@ Max 400 caractere.`;
 // FLOW PRINCIPAL
 // ============================================
 
-async function evaluateStep(stepData, answer, isCorrect, student) {
+async function evaluateStep(stepData, answer, isCorrect, student, stepIndex) {
   if (stepData.type === 'grila') {
     console.log('[GRILĂ]', {
-      step: stepData.step,
+      step: stepIndex, // acum avem indexul
       student: `${student.name} ${student.surname}`,
       isCorrect,
     });
@@ -311,13 +311,13 @@ async function evaluateStep(stepData, answer, isCorrect, student) {
   }
 
   console.log('[RĂSPUNS SCURT]', {
-    step: stepData.step,
+    step: stepIndex, // și aici
     student: `${student.name} ${student.surname}`,
     answer: answer.substring(0, 50) + '...',
   });
 
   try {
-    const aiResult = await evaluateShortAnswer(stepData, answer, student);
+    const aiResult = await evaluateShortAnswer(stepData, answer, student, stepIndex);
 
     if (aiResult.decision === 'abstain') {
       console.log('[ABSTAIN]');
@@ -396,9 +396,9 @@ Fii direct și util - e pentru pregătire BAC, nu pentru note generale.`;
 // ============================================
 
 async function handleStepFeedback(requestData) {
-  const { stepData, answer, student, isCorrect } = requestData;
+  const { stepData, answer, student, isCorrect, stepIndex } = requestData;
 
-  if (!stepData || answer === undefined || !student) {
+  if (!stepData || answer === undefined || !student || stepIndex === undefined) {
     return {
       statusCode: 400,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -407,7 +407,7 @@ async function handleStepFeedback(requestData) {
   }
 
   try {
-    const result = await evaluateStep(stepData, answer, isCorrect, student);
+    const result = await evaluateStep(stepData, answer, isCorrect, student, stepIndex);
 
     return {
       statusCode: 200,
