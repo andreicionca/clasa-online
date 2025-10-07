@@ -1,34 +1,7 @@
 // netlify/functions/worksheet-submit-religie-IX-adorarea-lui-dumnezeu.js
 
-const OpenAI = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const GRADING_SCHEMA = {
-  name: 'GradeShortAnswer',
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      is_correct: { type: 'boolean' },
-      score: { type: 'number' },
-      decision: {
-        type: 'string',
-        enum: ['correct', 'partially_correct', 'incorrect', 'abstain'],
-      },
-      concepts_found: {
-        type: 'array',
-        items: { type: 'string' },
-      },
-      concepts_missing: {
-        type: 'array',
-        items: { type: 'string' },
-      },
-      feedback: { type: 'string', maxLength: 600 },
-    },
-    required: ['is_correct', 'score', 'decision', 'concepts_found', 'concepts_missing', 'feedback'],
-  },
-  strict: true,
-};
+const { GoogleGenAI } = require('@google/genai');
+const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const EXPECTED_ANSWERS = {
   1: {
@@ -133,120 +106,135 @@ async function evaluateShortAnswer(stepIndex, stepData, answer, student) {
   const maxScore = config.points;
   const maxConceptsNeeded = config.max_concepts_needed || config.concepts.length;
 
-  const prompt = `You are a religion teacher grading a worksheet exercise.
+  const prompt = `Ești profesor de religie și corectezi o fișă de lucru.
 
-CONTEXT: Students have the worksheet with all content. This is reading comprehension.
+CONTEXT: Elevii au fișa cu tot conținutul. Aceasta este verificare de înțelegere.
 
-QUESTION: "${stepData.question}"
+ÎNTREBARE: "${stepData.question}"
 
-WHERE TO FIND ANSWER:
+UNDE SE GĂSEȘTE RĂSPUNSUL:
 ${config.reference_in_worksheet}
 
 ${
   isPartialScoring
-    ? `CONCEPTS (student needs ${maxConceptsNeeded}):`
-    : `ACCEPTABLE CONCEPTS (student needs ANY ${config.minimum_required}):`
+    ? `CONCEPTE (elevul trebuie să menționeze ${maxConceptsNeeded}):`
+    : `CONCEPTE ACCEPTABILE (elevul trebuie să menționeze ORICARE ${config.minimum_required}):`
 }
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-STUDENT: ${student.name} ${student.surname}
-ANSWER: "${answer}"
+ELEV: ${student.name} ${student.surname}
+RĂSPUNS: "${answer}"
 
-GRADING:
+REGULI EVALUARE:
 ${
   isPartialScoring
-    ? `- Ignore all diacritics
-- Count distinct concepts found
-- Put found concepts in concepts_found array`
-    : `- Ignore all diacritics and punctuation (Tolle lege = Tolle, lege)
-- Check if AT LEAST ${config.minimum_required} concept from list is present
-- If found → score ${maxScore}, decision "correct"
-- If not found → score 0, decision "incorrect"
-- DO NOT require ALL concepts, just ${config.minimum_required}`
+    ? `- Ignoră toate diacriticele (ă=a, ț=t, ș=s, î=i)
+- Ignoră punctuația și spațiile extra
+- Acceptă sinonime clare (gândire=gând, vorbire=cuvânt, acțiune=faptă)
+- Numără concepte distincte găsite
+- Pune conceptele găsite în concepts_found
+- 1 punct pentru fiecare concept găsit (max ${maxConceptsNeeded})`
+    : `- Ignoră toate diacriticele (ă=a, ț=t, ș=s, î=i)
+- Ignoră punctuația (Tolle lege = Tolle, lege)
+- Acceptă sinonime clare și echivalente
+- Verifică dacă MĂCAR ${config.minimum_required} concept este prezent
+- Dacă DA → punctaj ${maxScore}, decizie "correct"
+- Dacă NU → punctaj 0, decizie "incorrect"`
 }
 
-FEEDBACK (Romanian, 1-2 sentences):
-- If CORRECT: Confirm what they wrote
-- If INCORRECT: Guide to worksheet section`;
+IMPORTANT: NU inventa critici care nu există! Dacă elevul a scris ideea corectă cu alte cuvinte, acceptă răspunsul.
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0,
-    top_p: 1,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an educational teacher who provides clear, concise feedback.',
+Răspunde DOAR cu JSON în acest format exact:
+{
+  "is_correct": true sau false,
+  "score": număr,
+  "decision": "correct" sau "partially_correct" sau "incorrect" sau "abstain",
+  "concepts_found": ["concept1", "concept2"],
+  "concepts_missing": ["concept3"],
+  "feedback": "feedback în română, max 600 caractere"
+}`;
+
+  try {
+    const response = await gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
       },
-      { role: 'user', content: prompt },
-    ],
-    response_format: {
-      type: 'json_schema',
-      json_schema: GRADING_SCHEMA,
-    },
-  });
+    });
 
-  const result = JSON.parse(response.choices[0].message.content);
+    const responseText = response.text;
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
-  if (isPartialScoring && result.concepts_found && result.concepts_found.length > 0) {
-    const conceptsCount = result.concepts_found.length;
-
-    if (conceptsCount >= maxConceptsNeeded) {
-      result.score = maxScore;
-      result.decision = 'correct';
-      result.is_correct = true;
-    } else {
-      result.score = conceptsCount * config.points_per_concept;
-      result.decision = 'partially_correct';
-      result.is_correct = false;
+    if (!jsonMatch) {
+      throw new Error('Răspuns invalid de la AI');
     }
-  }
 
-  result.score = Math.min(result.score, maxScore);
-  return result;
+    const result = JSON.parse(jsonMatch[0]);
+
+    // Logica de scoring parțial
+    if (isPartialScoring && result.concepts_found && result.concepts_found.length > 0) {
+      const conceptsCount = result.concepts_found.length;
+
+      if (conceptsCount >= maxConceptsNeeded) {
+        result.score = maxScore;
+        result.decision = 'correct';
+        result.is_correct = true;
+      } else {
+        result.score = conceptsCount * config.points_per_concept;
+        result.decision = 'partially_correct';
+        result.is_correct = false;
+      }
+    }
+
+    result.score = Math.min(result.score, maxScore);
+    return result;
+  } catch (error) {
+    console.error('[EROARE GEMINI]', error);
+    throw error;
+  }
 }
 
 async function evaluateGrila(stepData, answer, isCorrect, student) {
   const score = isCorrect ? stepData.points : 0;
 
-  const prompt = `You are a religion teacher. Students have the worksheet.
+  const prompt = `Ești profesor de religie. Elevii au fișa de lucru.
 
-QUESTION: "${stepData.question}"
+ÎNTREBARE: "${stepData.question}"
 
-OPTIONS:
+OPȚIUNI:
 ${stepData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
 
-CORRECT: ${stepData.options[stepData.correct_answer]}
-STUDENT SELECTED: ${stepData.options[answer]}
+CORECT: ${stepData.options[stepData.correct_answer]}
+ELEVUL A ALES: ${stepData.options[answer]}
 
-FEEDBACK (Romanian, 1-2 sentences):
-- If CORRECT: Confirm answer briefly
-- If INCORRECT: Guide to worksheet section where answer can be found`;
+FEEDBACK (în română, 1-2 propoziții):
+- Dacă CORECT: Confirmă răspunsul pe scurt
+- Dacă GREȘIT: Indică secțiunea din fișă unde se găsește răspunsul`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0,
-    top_p: 1,
-    max_tokens: 150,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an educational teacher who provides clear, brief feedback.',
+  try {
+    const response = await gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
       },
-      { role: 'user', content: prompt },
-    ],
-  });
+    });
 
-  const feedback = response.choices[0].message.content.trim();
+    const feedback = response.text.trim();
 
-  return {
-    score,
-    is_correct: isCorrect,
-    decision: isCorrect ? 'correct' : 'incorrect',
-    feedback,
-    concepts_found: isCorrect ? [stepData.options[stepData.correct_answer]] : [],
-    concepts_missing: isCorrect ? [] : [stepData.options[stepData.correct_answer]],
-  };
+    return {
+      score,
+      is_correct: isCorrect,
+      decision: isCorrect ? 'correct' : 'incorrect',
+      feedback,
+      concepts_found: isCorrect ? [stepData.options[stepData.correct_answer]] : [],
+      concepts_missing: isCorrect ? [] : [stepData.options[stepData.correct_answer]],
+    };
+  } catch (error) {
+    console.error('[EROARE GEMINI]', error);
+    throw error;
+  }
 }
 
 async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
@@ -301,42 +289,38 @@ async function generateFinalReport(student, performanceData) {
   const partialSteps = stepResults.filter((s) => s.score > 0 && s.score < s.maxPoints).length;
   const incorrectSteps = stepResults.filter((s) => s.score === 0).length;
 
-  const prompt = `Create a personalized report in Romanian.
+  const prompt = `Creează un raport personalizat în română.
 
-STUDENT: ${student.name} ${student.surname}
-SCORE: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)
-Correct: ${correctSteps} | Partial: ${partialSteps} | Incorrect: ${incorrectSteps}
+ELEV: ${student.name} ${student.surname}
+PUNCTAJ: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)
+Corecte: ${correctSteps} | Parțiale: ${partialSteps} | Greșite: ${incorrectSteps}
 
-TOPIC: "Adorarea lui Dumnezeu" și viața Sfântului Augustin
+SUBIECT: "Adorarea lui Dumnezeu" și viața Sfântului Augustin
 
-3 sections (max 500 chars total):
+Creează 3 secțiuni scurte (max 500 caractere total):
 
 **Puncte forte:**
-[What they understood well - despre adorare sau Sf. Augustin]
+[Ce au înțeles bine - despre adorare sau Sf. Augustin]
 
 **De îmbunătățit:**
-[Which sections to review]
+[Care secțiuni să le revizuiască]
 
 **Încurajare:**
-[Personal encouragement - poate include referință la Sf. Augustin]
+[Încurajare personalizată - poate include referință la Sf. Augustin]
 
-Be specific to their performance. Warm and encouraging tone.`;
+Fii specific pentru performanța lor. Ton cald și încurajator.`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0.3,
-    top_p: 1,
-    max_tokens: 300,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a caring religion teacher providing personalized feedback in Romanian.',
-      },
-      { role: 'user', content: prompt },
-    ],
-  });
+  try {
+    const response = await gemini.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
 
-  return response.choices[0].message.content.trim();
+    return response.text.trim();
+  } catch (error) {
+    console.error('[EROARE GEMINI]', error);
+    throw error;
+  }
 }
 
 async function handleStepFeedback(requestData) {

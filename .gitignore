@@ -1,0 +1,5 @@
+# În fișierul .gitignore (dacă nu există deja, adăugați):
+node_modules/
+.env
+.env.local
+test-*.js
