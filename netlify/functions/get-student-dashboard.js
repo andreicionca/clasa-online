@@ -5,20 +5,28 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 
 // Helper: Calculează rank sportiv (egalități = același rank)
 // Helper: Calculează rank sportiv CONTINUU (fără sărituri)
+// Helper: Calculează rank sportiv CONTINUU (fără sărituri)
 function assignSportsRanking(sortedArray) {
   if (sortedArray.length === 0) return [];
 
-  let currentRank = 1;
   sortedArray[0].rank = 1;
 
   for (let i = 1; i < sortedArray.length; i++) {
-    if (sortedArray[i].score === sortedArray[i - 1].score) {
-      // Același scor = păstrează rank-ul anterior
+    // Comparație cu toleranță pentru float-uri (0.01 diferență)
+    const currentScore = parseFloat(sortedArray[i].score);
+    const previousScore = parseFloat(sortedArray[i - 1].score);
+
+    // Debug log
+    console.log(`    [Rank] Index ${i}: score=${currentScore}, prev=${previousScore}`);
+
+    if (Math.abs(currentScore - previousScore) < 0.01) {
+      // Același scor (toleranță pentru erori de float)
       sortedArray[i].rank = sortedArray[i - 1].rank;
+      console.log(`      → Același rank: ${sortedArray[i].rank}`);
     } else {
-      // Scor diferit = rank-ul anterior + 1
-      currentRank = sortedArray[i - 1].rank + 1;
-      sortedArray[i].rank = currentRank;
+      // Scor diferit
+      sortedArray[i].rank = sortedArray[i - 1].rank + 1;
+      console.log(`      → Rank nou: ${sortedArray[i].rank}`);
     }
   }
 
