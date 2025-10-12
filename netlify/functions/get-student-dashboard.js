@@ -334,6 +334,11 @@ exports.handler = async (event) => {
     const overallRankings = Object.values(overallScores).sort(
       (a, b) => b.total_score - a.total_score
     );
+    // ✅ FIX: Normalizează proprietatea pentru funcția de ranking
+
+    overallRankings.forEach((entry) => {
+      entry.score = entry.total_score;
+    });
 
     // ✅ RANK SPORTIV pentru clasamentul general
     assignSportsRanking(overallRankings);
