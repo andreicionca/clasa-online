@@ -32,6 +32,8 @@ exports.handler = async (event) => {
       };
     }
 
+    console.log('🔍 Se caută studentul cu codul:', studentCode);
+
     // 1. Verifică și obține datele elevului
     const { data: student, error: studentError } = await supabase
       .from('students')
@@ -40,6 +42,7 @@ exports.handler = async (event) => {
       .single();
 
     if (studentError || !student) {
+      console.error('❌ Eroare la găsirea studentului:', studentError);
       return {
         statusCode: 401,
         headers: {
@@ -53,8 +56,10 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2. Obține toate worksheets pentru clasa elevului
-    const { data: worksheets, error: worksheetsError } = await supabase
+    console.log('✅ Student găsit:', student);
+
+    // 2. Obține toate worksheets pentru clasa elevului (cu structure ca string)
+    const { data: worksheetsRaw, error: worksheetsError } = await supabase
       .from('worksheets')
       .select('id, subject, grade, topic, title, description, structure, max_attempts, is_active')
       .eq('grade', student.grade)
@@ -62,20 +67,46 @@ exports.handler = async (event) => {
       .order('created_at', { ascending: false });
 
     if (worksheetsError) {
+      console.error('❌ Eroare la încărcarea worksheets:', worksheetsError);
       throw worksheetsError;
     }
 
-    // 3. Obține toți studenții din aceeași clasă (pentru rankings)
+    console.log(`✅ ${worksheetsRaw.length} worksheets găsite pentru clasa ${student.grade}`);
+
+    // Parse JSON structure pentru fiecare worksheet
+    const worksheets = worksheetsRaw.map((ws) => {
+      try {
+        // CRITICĂ: structure este STRING, trebuie parsat
+        const parsedStructure =
+          typeof ws.structure === 'string' ? JSON.parse(ws.structure) : ws.structure;
+
+        return {
+          ...ws,
+          structure: parsedStructure,
+        };
+      } catch (parseError) {
+        console.error(`❌ Eroare la parsarea structure pentru worksheet ${ws.id}:`, parseError);
+        return {
+          ...ws,
+          structure: { steps: [], exercise_config: { has_scoring: true, total_points: 0 } },
+        };
+      }
+    });
+
+    // 3. Obține toți studenții din aceeași clasă
     const { data: classmates, error: classmatesError } = await supabase
       .from('students')
       .select('id, name, surname')
       .eq('grade', student.grade);
 
     if (classmatesError) {
+      console.error('❌ Eroare la încărcarea colegilor:', classmatesError);
       throw classmatesError;
     }
 
-    // 4. Obține toate încercările completate pentru toate worksheets
+    console.log(`✅ ${classmates.length} colegi găsiți în clasa ${student.grade}`);
+
+    // 4. Obține toate încercările COMPLETATE pentru toate worksheets
     const worksheetIds = worksheets.map((w) => w.id);
     const classmateIds = classmates.map((s) => s.id);
 
@@ -84,35 +115,48 @@ exports.handler = async (event) => {
       .select('id, student_id, worksheet_id, attempt_number, total_score, completed_at')
       .in('worksheet_id', worksheetIds)
       .in('student_id', classmateIds)
-      .eq('is_completed', true);
+      .eq('is_completed', true)
+      .order('completed_at', { ascending: false });
 
     if (attemptsError) {
+      console.error('❌ Eroare la încărcarea încercărilor:', attemptsError);
       throw attemptsError;
     }
+
+    console.log(`✅ ${allAttempts.length} încercări completate găsite`);
 
     // 5. Procesează datele pentru fiecare worksheet
     const worksheetsData = worksheets.map((worksheet) => {
       // Calculează max score din structure
-      const maxScore = worksheet.structure.steps.reduce((sum, step) => sum + step.points, 0);
+      const maxScore = worksheet.structure.steps.reduce((sum, step) => sum + (step.points || 0), 0);
+
+      console.log(
+        `📝 Procesare worksheet ${worksheet.id} - ${worksheet.title}, max_score: ${maxScore}`
+      );
 
       // Filtrează încercările pentru acest worksheet
       const worksheetAttempts = allAttempts.filter((a) => a.worksheet_id === worksheet.id);
 
-      // Calculează best score pentru fiecare student
+      console.log(`  → ${worksheetAttempts.length} încercări pentru acest worksheet`);
+
+      // Calculează BEST score pentru fiecare student
       const studentBestScores = {};
+
       worksheetAttempts.forEach((attempt) => {
         const studentId = attempt.student_id;
-        if (
-          !studentBestScores[studentId] ||
-          attempt.total_score > studentBestScores[studentId].score
-        ) {
+        // CRITICĂ: total_score poate fi string, convertim la număr
+        const score = parseFloat(attempt.total_score) || 0;
+
+        if (!studentBestScores[studentId] || score > studentBestScores[studentId].score) {
           studentBestScores[studentId] = {
-            score: attempt.total_score,
+            score: score,
             attempt_number: attempt.attempt_number,
             completed_at: attempt.completed_at,
           };
         }
       });
+
+      console.log(`  → ${Object.keys(studentBestScores).length} studenți cu best scores`);
 
       // Creează array pentru ranking (doar studenți cu cel puțin o încercare)
       const rankings = Object.entries(studentBestScores)
@@ -126,7 +170,13 @@ exports.handler = async (event) => {
             completed_at: data.completed_at,
           };
         })
-        .sort((a, b) => b.score - a.score); // Sortează descrescător
+        .sort((a, b) => {
+          // Sortează descrescător după scor, apoi după dată (mai veche = mai sus)
+          if (b.score !== a.score) {
+            return b.score - a.score;
+          }
+          return new Date(a.completed_at) - new Date(b.completed_at);
+        });
 
       // Adaugă rank
       rankings.forEach((entry, index) => {
@@ -138,6 +188,12 @@ exports.handler = async (event) => {
 
       // Top 5
       const top5 = rankings.slice(0, 5);
+
+      console.log(
+        `  → Studentul curent: ${
+          studentData ? `rank ${studentData.rank}, score ${studentData.score}` : 'neînceput'
+        }`
+      );
 
       return {
         id: worksheet.id,
@@ -159,20 +215,34 @@ exports.handler = async (event) => {
     });
 
     // 6. Calculează statistici generale (overall)
-    const overallScores = {};
+    console.log('📊 Calculare statistici generale...');
 
     // Pentru fiecare student, sumează best scores din toate worksheets
-    classmates.forEach((classmate) => {
-      const totalScore = worksheetsData.reduce((sum, ws) => {
-        const studentEntry = ws.top_5.find((entry) => entry.student_id === classmate.id);
-        // Caută în tot ranking-ul, nu doar top 5
-        const allRankings = allAttempts
-          .filter((a) => a.worksheet_id === ws.id && a.student_id === classmate.id)
-          .map((a) => a.total_score);
+    const overallScores = {};
 
-        const bestScore = allRankings.length > 0 ? Math.max(...allRankings) : 0;
-        return sum + bestScore;
-      }, 0);
+    classmates.forEach((classmate) => {
+      let totalScore = 0;
+
+      worksheetsData.forEach((ws) => {
+        // Găsește best score-ul acestui student pentru acest worksheet
+        const studentEntry = ws.top_5.find((entry) => entry.student_id === classmate.id);
+
+        // Dacă nu e în top 5, caută în toate încercările
+        if (!studentEntry) {
+          const studentAttempts = allAttempts.filter(
+            (a) => a.worksheet_id === ws.id && a.student_id === classmate.id
+          );
+
+          if (studentAttempts.length > 0) {
+            const bestScore = Math.max(
+              ...studentAttempts.map((a) => parseFloat(a.total_score) || 0)
+            );
+            totalScore += bestScore;
+          }
+        } else {
+          totalScore += studentEntry.score;
+        }
+      });
 
       if (totalScore > 0) {
         overallScores[classmate.id] = {
@@ -192,8 +262,18 @@ exports.handler = async (event) => {
       entry.rank = index + 1;
     });
 
+    console.log(`  → ${overallRankings.length} studenți în clasamentul general`);
+
     // Găsește poziția studentului curent
     const studentOverallData = overallRankings.find((r) => r.student_id === student.id);
+
+    console.log(
+      `  → Studentul curent: ${
+        studentOverallData
+          ? `rank ${studentOverallData.rank}, total ${studentOverallData.total_score}`
+          : 'fără puncte'
+      }`
+    );
 
     // Calculează total puncte posibile
     const totalPointsPossible = worksheetsData.reduce((sum, ws) => sum + ws.max_score, 0);
@@ -201,39 +281,53 @@ exports.handler = async (event) => {
     // Calculează câte worksheets au fost completate
     const completedWorksheetsCount = worksheetsData.filter((ws) => ws.has_attempted).length;
 
+    console.log(`  → Total puncte posibile: ${totalPointsPossible}`);
+    console.log(`  → Worksheets completate: ${completedWorksheetsCount}/${worksheets.length}`);
+
     // 7. Construiește răspunsul final
+    const response = {
+      success: true,
+      student: {
+        id: student.id,
+        name: student.name,
+        surname: student.surname,
+        grade: student.grade,
+      },
+      worksheets: worksheetsData,
+      overall_stats: {
+        total_points_earned: studentOverallData ? studentOverallData.total_score : 0,
+        total_points_possible: totalPointsPossible,
+        overall_rank: studentOverallData ? studentOverallData.rank : null,
+        total_students_with_attempts: overallRankings.length,
+        overall_top_5: overallRankings.slice(0, 5),
+        worksheets_completed: completedWorksheetsCount,
+        worksheets_total: worksheets.length,
+        completion_percentage:
+          worksheets.length > 0
+            ? Math.round((completedWorksheetsCount / worksheets.length) * 100)
+            : 0,
+      },
+    };
+
+    console.log('✅ Răspuns construit cu succes');
+    console.log('📤 Se returnează date pentru:', {
+      student: `${student.name} ${student.surname}`,
+      worksheets: worksheetsData.length,
+      rank: response.overall_stats.overall_rank,
+      score: response.overall_stats.total_points_earned,
+    });
+
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({
-        success: true,
-        student: {
-          id: student.id,
-          name: student.name,
-          surname: student.surname,
-          grade: student.grade,
-        },
-        worksheets: worksheetsData,
-        overall_stats: {
-          total_points_earned: studentOverallData ? studentOverallData.total_score : 0,
-          total_points_possible: totalPointsPossible,
-          overall_rank: studentOverallData ? studentOverallData.rank : null,
-          total_students_with_attempts: overallRankings.length,
-          overall_top_5: overallRankings.slice(0, 5),
-          worksheets_completed: completedWorksheetsCount,
-          worksheets_total: worksheets.length,
-          completion_percentage:
-            worksheets.length > 0
-              ? Math.round((completedWorksheetsCount / worksheets.length) * 100)
-              : 0,
-        },
-      }),
+      body: JSON.stringify(response),
     };
   } catch (error) {
-    console.error('Eroare get-student-dashboard:', error);
+    console.error('❌ Eroare CRITICĂ în get-student-dashboard:', error);
+    console.error('Stack trace:', error.stack);
     return {
       statusCode: 500,
       headers: {
@@ -243,6 +337,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: false,
         error: 'Eroare de server. Încearcă din nou.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       }),
     };
   }
