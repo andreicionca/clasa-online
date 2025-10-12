@@ -58,12 +58,81 @@ exports.handler = async (event) => {
 
     console.log('✅ Student găsit:', student);
 
-    // 2. Obține toate worksheets pentru clasa elevului (cu structure ca string)
+    // 2. Obține toți studenții din EXACT aceeași clasă (cu tot cu secțiune)
+    const { data: classmates, error: classmatesError } = await supabase
+      .from('students')
+      .select('id, name, surname')
+      .eq('grade', student.grade); // Match exact: "XI E" = "XI E"
+
+    if (classmatesError) {
+      console.error('❌ Eroare la încărcarea colegilor:', classmatesError);
+      throw classmatesError;
+    }
+
+    console.log(`✅ ${classmates.length} colegi găsiți în clasa ${student.grade}`);
+
+    // 3. Obține toate încercările COMPLETATE ale colegilor din clasă
+    const classmateIds = classmates.map((s) => s.id);
+
+    const { data: allAttempts, error: attemptsError } = await supabase
+      .from('worksheet_attempts')
+      .select('id, student_id, worksheet_id, attempt_number, total_score, completed_at')
+      .in('student_id', classmateIds)
+      .eq('is_completed', true)
+      .order('completed_at', { ascending: false });
+
+    if (attemptsError) {
+      console.error('❌ Eroare la încărcarea încercărilor:', attemptsError);
+      throw attemptsError;
+    }
+
+    console.log(
+      `✅ ${allAttempts.length} încercări completate găsite pentru clasa ${student.grade}`
+    );
+
+    // 4. Extrage worksheet_ids unice din încercări
+    const worksheetIdsUsed = [...new Set(allAttempts.map((a) => a.worksheet_id))];
+
+    if (worksheetIdsUsed.length === 0) {
+      console.log('ℹ️ Nicio fișă nu a fost încercată de clasa ta încă');
+
+      // Returnează răspuns gol dar valid
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({
+          success: true,
+          student: {
+            id: student.id,
+            name: student.name,
+            surname: student.surname,
+            grade: student.grade,
+          },
+          worksheets: [],
+          overall_stats: {
+            total_points_earned: 0,
+            total_points_possible: 0,
+            overall_rank: null,
+            total_students_with_attempts: 0,
+            overall_top_5: [],
+            worksheets_completed: 0,
+            worksheets_total: 0,
+            completion_percentage: 0,
+          },
+        }),
+      };
+    }
+
+    console.log(`📋 Se încarcă ${worksheetIdsUsed.length} worksheets folosite de clasă`);
+
+    // 5. Încarcă DOAR worksheets folosite de clasă (indiferent de grade)
     const { data: worksheetsRaw, error: worksheetsError } = await supabase
       .from('worksheets')
       .select('id, subject, grade, topic, title, description, structure, max_attempts, is_active')
-      .eq('grade', student.grade)
-      .eq('is_visible', true)
+      .in('id', worksheetIdsUsed)
       .order('created_at', { ascending: false });
 
     if (worksheetsError) {
@@ -71,12 +140,11 @@ exports.handler = async (event) => {
       throw worksheetsError;
     }
 
-    console.log(`✅ ${worksheetsRaw.length} worksheets găsite pentru clasa ${student.grade}`);
+    console.log(`✅ ${worksheetsRaw.length} worksheets încărcate`);
 
     // Parse JSON structure pentru fiecare worksheet
     const worksheets = worksheetsRaw.map((ws) => {
       try {
-        // CRITICĂ: structure este STRING, trebuie parsat
         const parsedStructure =
           typeof ws.structure === 'string' ? JSON.parse(ws.structure) : ws.structure;
 
@@ -93,39 +161,7 @@ exports.handler = async (event) => {
       }
     });
 
-    // 3. Obține toți studenții din aceeași clasă
-    const { data: classmates, error: classmatesError } = await supabase
-      .from('students')
-      .select('id, name, surname')
-      .eq('grade', student.grade);
-
-    if (classmatesError) {
-      console.error('❌ Eroare la încărcarea colegilor:', classmatesError);
-      throw classmatesError;
-    }
-
-    console.log(`✅ ${classmates.length} colegi găsiți în clasa ${student.grade}`);
-
-    // 4. Obține toate încercările COMPLETATE pentru toate worksheets
-    const worksheetIds = worksheets.map((w) => w.id);
-    const classmateIds = classmates.map((s) => s.id);
-
-    const { data: allAttempts, error: attemptsError } = await supabase
-      .from('worksheet_attempts')
-      .select('id, student_id, worksheet_id, attempt_number, total_score, completed_at')
-      .in('worksheet_id', worksheetIds)
-      .in('student_id', classmateIds)
-      .eq('is_completed', true)
-      .order('completed_at', { ascending: false });
-
-    if (attemptsError) {
-      console.error('❌ Eroare la încărcarea încercărilor:', attemptsError);
-      throw attemptsError;
-    }
-
-    console.log(`✅ ${allAttempts.length} încercări completate găsite`);
-
-    // 5. Procesează datele pentru fiecare worksheet
+    // 6. Procesează datele pentru fiecare worksheet
     const worksheetsData = worksheets.map((worksheet) => {
       // Calculează max score din structure
       const maxScore = worksheet.structure.steps.reduce((sum, step) => sum + (step.points || 0), 0);
@@ -134,17 +170,16 @@ exports.handler = async (event) => {
         `📝 Procesare worksheet ${worksheet.id} - ${worksheet.title}, max_score: ${maxScore}`
       );
 
-      // Filtrează încercările pentru acest worksheet
+      // Filtrează încercările pentru acest worksheet (doar din clasa curentă)
       const worksheetAttempts = allAttempts.filter((a) => a.worksheet_id === worksheet.id);
 
-      console.log(`  → ${worksheetAttempts.length} încercări pentru acest worksheet`);
+      console.log(`  → ${worksheetAttempts.length} încercări din clasa ${student.grade}`);
 
-      // Calculează BEST score pentru fiecare student
+      // Calculează BEST score pentru fiecare student DIN CLASĂ
       const studentBestScores = {};
 
       worksheetAttempts.forEach((attempt) => {
         const studentId = attempt.student_id;
-        // CRITICĂ: total_score poate fi string, convertim la număr
         const score = parseFloat(attempt.total_score) || 0;
 
         if (!studentBestScores[studentId] || score > studentBestScores[studentId].score) {
@@ -158,7 +193,7 @@ exports.handler = async (event) => {
 
       console.log(`  → ${Object.keys(studentBestScores).length} studenți cu best scores`);
 
-      // Creează array pentru ranking (doar studenți cu cel puțin o încercare)
+      // Creează array pentru ranking (doar colegii din clasă care au încercat)
       const rankings = Object.entries(studentBestScores)
         .map(([studentId, data]) => {
           const studentInfo = classmates.find((s) => s.id === parseInt(studentId));
@@ -171,7 +206,6 @@ exports.handler = async (event) => {
           };
         })
         .sort((a, b) => {
-          // Sortează descrescător după scor, apoi după dată (mai veche = mai sus)
           if (b.score !== a.score) {
             return b.score - a.score;
           }
@@ -214,20 +248,17 @@ exports.handler = async (event) => {
       };
     });
 
-    // 6. Calculează statistici generale (overall)
+    // 7. Calculează statistici generale (overall - doar pentru clasa curentă)
     console.log('📊 Calculare statistici generale...');
 
-    // Pentru fiecare student, sumează best scores din toate worksheets
     const overallScores = {};
 
     classmates.forEach((classmate) => {
       let totalScore = 0;
 
       worksheetsData.forEach((ws) => {
-        // Găsește best score-ul acestui student pentru acest worksheet
         const studentEntry = ws.top_5.find((entry) => entry.student_id === classmate.id);
 
-        // Dacă nu e în top 5, caută în toate încercările
         if (!studentEntry) {
           const studentAttempts = allAttempts.filter(
             (a) => a.worksheet_id === ws.id && a.student_id === classmate.id
@@ -253,7 +284,6 @@ exports.handler = async (event) => {
       }
     });
 
-    // Creează ranking general
     const overallRankings = Object.values(overallScores).sort(
       (a, b) => b.total_score - a.total_score
     );
@@ -264,7 +294,6 @@ exports.handler = async (event) => {
 
     console.log(`  → ${overallRankings.length} studenți în clasamentul general`);
 
-    // Găsește poziția studentului curent
     const studentOverallData = overallRankings.find((r) => r.student_id === student.id);
 
     console.log(
@@ -275,16 +304,13 @@ exports.handler = async (event) => {
       }`
     );
 
-    // Calculează total puncte posibile
     const totalPointsPossible = worksheetsData.reduce((sum, ws) => sum + ws.max_score, 0);
-
-    // Calculează câte worksheets au fost completate
     const completedWorksheetsCount = worksheetsData.filter((ws) => ws.has_attempted).length;
 
     console.log(`  → Total puncte posibile: ${totalPointsPossible}`);
     console.log(`  → Worksheets completate: ${completedWorksheetsCount}/${worksheets.length}`);
 
-    // 7. Construiește răspunsul final
+    // 8. Construiește răspunsul final
     const response = {
       success: true,
       student: {
