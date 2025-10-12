@@ -3,10 +3,10 @@
 const { GoogleGenAI } = require('@google/genai');
 const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ==============================
-// CONFIGURAȚII RĂSPUNSURI AȘTEPTATE (BIBLIA – CARTEA CĂRȚILOR)
-// Structură și stil aliniate la fișa "adorarea-lui-dumnezeu"
-// ==============================
+// ============================================
+// CONFIGURAȚII - EXACT CA ÎN "adorarea", DAR PENTRU "BIBLIA – CARTEA CĂRȚILOR"
+// ============================================
+
 const EXPECTED_ANSWERS = {
   1: {
     question_type: 'date_and_person',
@@ -15,14 +15,12 @@ const EXPECTED_ANSWERS = {
     reference_in_worksheet:
       'Secțiunea "Cum a fost scrisă": "Prima carte a fost scrisă de Moise în jurul anului 1400 î.Hr. – Facerea (Geneza)."',
     points: 1,
-    allow_partial: false, // Trebuie cel puțin Moise SAU data
   },
   2: {
-    question_type: 'list',
+    question_type: 'list_partial',
     concepts: [
       'Moise',
       'începutul lumii',
-      'începutul',
       'creația',
       'Adam',
       'Eva',
@@ -31,99 +29,86 @@ const EXPECTED_ANSWERS = {
       'Avraam',
       'Abraham',
     ],
-    minimum_required: 2, // ideal: Moise + cel puțin 1 eveniment
+    minimum_required: 2,
     reference_in_worksheet:
-      'Secțiunea "Povestea Bibliei": "Moise a început să scrie primele texte. Prima carte se numește Facerea (Geneza) și povestește începutul lumii, viața lui Adam și Eva, potopul lui Noe și alegerea lui Avraam."',
+      'Secțiunea "Povestea Bibliei": "Moise a început să scrie primele texte... Geneza povestește începutul lumii, Adam și Eva, potopul lui Noe, alegerea lui Avraam."',
     points: 1,
-    allow_partial: true, // 0.5 dacă are cel puțin 1 concept dar sub prag
+    partial_scoring: true,
+    points_per_concept: 0.5,
+    max_concepts_needed: 2, // dacă atinge 2, ia punctul maxim
   },
   3: {
-    question_type: 'proper_name_or_date',
-    concepts: ['Ioan', 'Apostolul Ioan', 'apostolul Ioan', 'Apocalipsa', '95 d.Hr.', '95'],
+    question_type: 'proper_name',
+    concepts: ['Ioan', 'Apostolul Ioan', 'Apocalipsa', '95 d.Hr.', '95'],
     minimum_required: 1,
     reference_in_worksheet:
-      'Secțiunea "Povestea Bibliei" și "Cum a fost scrisă": "Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr." și "Ultima carte a fost scrisă de apostolul Ioan în jurul anului 95 d.Hr. – Apocalipsa."',
+      'Secțiunea "Povestea Bibliei"/"Cum a fost scrisă": "Ultima carte, Apocalipsa, scrisă de Ioan în jurul anului 95 d.Hr."',
     points: 1,
-    allow_partial: false,
   },
   4: {
     question_type: 'proper_name',
     concepts: ['P52', 'Papirusul P52', 'papirus P52', '120 d.Hr.', '120'],
     minimum_required: 1,
     reference_in_worksheet:
-      'Secțiunea "Transmiterea": "Cel mai vechi fragment al Noului Testament este Papirusul P52, datat în jurul anului 120 d.Hr."',
+      'Secțiunea "Transmiterea": "Cel mai vechi fragment al Noului Testament este Papirusul P52 (~120 d.Hr.)"',
     points: 1,
-    allow_partial: false,
   },
   5: {
-    question_type: 'list',
-    concepts: [
-      'papirus',
-      'papirusul',
-      'pergament',
-      'pergamentul',
-      'plantă',
-      'Nil',
-      'piele',
-      'animal',
-    ],
-    minimum_required: 2, // Cel puțin 2 dintre: papirus/pergament/contextul lor
+    question_type: 'list_partial',
+    concepts: ['papirus', 'pergament', 'plantă', 'Nil', 'piele', 'animal'],
+    minimum_required: 2,
     reference_in_worksheet:
-      'Secțiunea "Materialul": "s-a folosit papirusul, o „hârtie" obținută dintr-o plantă care creștea la Nil. Mai târziu s-a folosit și pergamentul (piele de animal)."',
+      'Secțiunea "Materialul": "papirus (plantă de pe Nil); pergament (piele de animal)"',
     points: 1,
-    allow_partial: true, // 0.5 dacă are doar 1 concept
+    partial_scoring: true,
+    points_per_concept: 0.5,
+    max_concepts_needed: 2,
   },
   6: {
-    question_type: 'list',
-    concepts: [
-      'ebraică',
-      'ebraica',
-      'evreu',
-      'aramaică',
-      'aramaica',
-      'greacă',
-      'greaca',
-      'koiné',
-      'koine',
-    ],
-    minimum_required: 2, // Cel puțin 2 limbi
+    question_type: 'list_partial',
+    concepts: ['ebraică', 'ebraica', 'aramaică', 'aramaica', 'greacă', 'greaca', 'koiné', 'koine'],
+    minimum_required: 2,
     reference_in_worksheet:
-      'Secțiunea "Limbile originale": "Ebraica – limba poporului Israel, în care s-a scris majoritatea Vechiului Testament. Aramaica – limbă vorbită în Orientul Apropiat, prezentă în câteva fragmente. Greaca koiné – limba comună a secolului I, în care a fost scris Noul Testament."',
+      'Secțiunea "Limbile originale": "Ebraica (Vechiul Testament, majoritar), Aramaica (fragmente), Greaca koiné (Noul Testament)"',
     points: 1,
-    allow_partial: true, // 0.5 dacă are doar 1 limbă corectă
+    partial_scoring: true,
+    points_per_concept: 0.5,
+    max_concepts_needed: 2,
   },
   8: {
-    question_type: 'proper_name_and_date',
+    question_type: 'proper_name',
     concepts: ['București', 'Bucuresti', '1688'],
     minimum_required: 1,
     reference_in_worksheet:
-      'Secțiunea "Traducerea": "Prima traducere completă în română a fost tipărită la București, în 1688."',
+      'Secțiunea "Traducerea": "Prima traducere completă în română: București, 1688"',
     points: 1,
-    allow_partial: true, // 0.5 dacă are doar București SAU doar 1688
   },
   9: {
     question_type: 'open_creative',
-    concepts: [], // Deschis: orice personaj/poveste biblică valid(ă)
+    concepts: [],
     minimum_required: 0,
     reference_in_worksheet:
-      'Întreaga fișă: personaje ca Moise, Adam și Eva, Noe, Avraam, David, Iisus Hristos, Ioan, apostolii, profeții etc.',
+      'Întreaga fișă: personaje/episoade biblice (Moise, Noe, Avraam, David, Iisus, apostolii, profeții etc.)',
     points: 1,
-    allow_partial: true, // 0.5 dacă există doar mențiunea personajului, dar descriere minimă
+    partial_scoring: true,
+    points_per_concept: 0.5, // mențiune validă dar descriere minimă = 0.5
+    max_concepts_needed: 1,
   },
 };
 
-// ==============================
-// EVALUARE RĂSPUNSURI SCURTE (GEMINI, JSON STRICT)
-// ==============================
+// ============================================
+// EVALUARE RĂSPUNSURI SCURTE – IDENTIC CU "adorarea"
+// ============================================
+
 async function evaluateShortAnswer(stepIndex, stepData, answer, student) {
   const config = EXPECTED_ANSWERS[stepIndex];
   if (!config) throw new Error(`Nu există configurație pentru pasul ${stepIndex}`);
 
-  // Prompt unificat, ca în "adorarea-lui-dumnezeu"
-  const isPartialScoring = config.allow_partial === true ? true : false;
+  const isPartialScoring = config.partial_scoring === true;
   const maxScore = config.points;
+  const maxConceptsNeeded = config.max_concepts_needed || config.concepts?.length || 0;
 
-  const prompt = `Ești profesor de religie și corectezi o fișă de lucru despre "Biblia – Cartea Cărților".
+  const prompt = `Ești profesor de religie și corectezi o fișă de lucru.
 
 CONTEXT: Elevii au fișa cu tot conținutul. Aceasta este verificare de înțelegere.
 
@@ -133,48 +118,43 @@ UNDE SE GĂSEȘTE RĂSPUNSUL:
 ${config.reference_in_worksheet}
 
 ${
-  config.concepts.length
-    ? `CONCEPTE ACCEPTABILE (toleranță la diacritice, sinonime, mici erori de ortografie; pentru date ±50 ani, "Facerea" = "Geneza"):
+  config.concepts?.length
+    ? `${
+        isPartialScoring
+          ? `CONCEPTE (elevul trebuie să atingă pragul de ${maxConceptsNeeded} pentru punctaj maxim):`
+          : `CONCEPTE ACCEPTABILE (trebuie să apară MĂCAR ${config.minimum_required}):`
+      }
 ${config.concepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}`
-    : 'CONCEPTE ACCEPTABILE: (întrebare deschisă – orice personaj/povestire biblică validă)'
+    : 'CONCEPTE ACCEPTABILE: (întrebare deschisă; acceptă orice personaj/povestire biblică validă)'
 }
 
 ELEV: ${student.name} ${student.surname}
 RĂSPUNS: "${answer}"
 
 REGULI EVALUARE:
-- Ignoră diacriticele (ă=a, î=i, â=a, ș=s, ț=t)
-- Ignoră punctuația și spațiile suplimentare
-- Acceptă echivalențe semantice (ex: "Facerea" = "Geneza"; "apostolul Ioan" = "Ioan")
-- Pentru date: acceptă aproximativ (ex: 1400 î.Hr. ~ 1350–1450 î.Hr.)
-- Identifică conceptele corecte din răspuns și listează-le în "concepts_found"
-- Listează conceptele relevante lipsă în "concepts_missing" (dacă există)
-
-SCORING:
 ${
   isPartialScoring
-    ? `- Dacă găsești cel puțin ${config.minimum_required} concepte → "score": ${maxScore}, "decision": "correct", "is_correct": true
-- Dacă găsești cel puțin 1 concept dar sub ${config.minimum_required} → "score": 0.5, "decision": "partially_correct", "is_correct": false
-- Dacă nu găsești nimic relevant → "score": 0, "decision": "incorrect", "is_correct": false`
-    : `- Dacă găsești cel puțin ${config.minimum_required} concept(e) → "score": ${maxScore}, "decision": "correct", "is_correct": true
-- Altfel → "score": 0, "decision": "incorrect", "is_correct": false`
+    ? `- Ignoră diacriticele (ă=a, î=i, ș=s, ț=t), punctuația și spațiile extra
+- Acceptă sinonime și echivalențe ("Facerea" = "Geneza"; "apostolul Ioan" = "Ioan"; pentru date ±50 ani)
+- Numără conceptele distincte găsite
+- Pune conceptele găsite în "concepts_found"
+- Scor: 1 punct dacă atinge pragul (${maxConceptsNeeded}); altfel 0.5 pentru cel puțin 1 concept; altfel 0`
+    : `- Ignoră diacriticele (ă=a, î=i, ș=s, ț=t), punctuația și spațiile extra
+- Acceptă sinonime și echivalențe (ex. "Facerea"="Geneza"; date ±50 ani)
+- Verifică dacă există MĂCAR ${config.minimum_required} concept(e)
+- Dacă DA → ${maxScore} p, decizie "correct"; dacă NU → 0 p, "incorrect"`
 }
 
-CAZ SPECIAL (ÎNTREBARE DESCHISĂ):
-- Dacă nu poți determina clar validitatea (nu știi dacă e biblic) → "decision": "abstain", "score": 0
+IMPORTANT: NU inventa critici care nu există! Dacă elevul a scris ideea corectă cu alte cuvinte, acceptă răspunsul.
 
-FEEDBACK:
-- În română, scurt (max 600 caractere), cald și specific.
-- Dacă INCORRECT: indică secțiunea din fișă unde se găsește răspunsul (după "UNDE SE GĂSEȘTE RĂSPUNSUL").
-
-Răspunde DOAR cu JSON exact în formatul:
+Răspunde DOAR cu JSON în acest format exact:
 {
   "is_correct": true/false,
-  "score": number,
+  "score": număr,
   "decision": "correct"|"partially_correct"|"incorrect"|"abstain",
-  "concepts_found": ["..."],
-  "concepts_missing": ["..."],
-  "feedback": "..."
+  "concepts_found": ["concept1","concept2"],
+  "concepts_missing": ["concept3"],
+  "feedback": "feedback în română, max 600 caractere"
 }`;
 
   try {
@@ -184,34 +164,50 @@ Răspunde DOAR cu JSON exact în formatul:
       config: { thinkingConfig: { thinkingBudget: 0 } },
     });
 
-    const responseText = response.text || '';
-    const jsonMatch = responseText.match(/\{[\s\S]*\}$/);
-    if (!jsonMatch) throw new Error('Răspuns invalid de la AI');
+    const responseText = response.text; // EXACT ca în fișierul "adorarea"
+    const jsonMatch = responseText && responseText.match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      throw new Error('Răspuns invalid de la AI');
+    }
 
     const result = JSON.parse(jsonMatch[0]);
 
-    // Asigurăm coerența și tăiem la punctaj maxim
-    if (typeof result.score !== 'number') result.score = 0;
-    result.score = Math.min(result.score, maxScore);
-
-    // Reparăm decizia pentru întrebările cu allow_partial, dacă AI nu a respectat exact regula
-    if (isPartialScoring && result.decision !== 'abstain') {
+    // Logica de scoring parțial – IDENTICĂ
+    if (isPartialScoring) {
       const found = Array.isArray(result.concepts_found) ? result.concepts_found.length : 0;
-      if (found >= config.minimum_required) {
-        result.score = maxScore;
-        result.is_correct = true;
-        result.decision = 'correct';
-      } else if (found >= 1) {
-        result.score = Math.max(result.score, 0.5);
-        result.is_correct = false;
-        result.decision = 'partially_correct';
+      if (maxConceptsNeeded > 0) {
+        if (found >= maxConceptsNeeded) {
+          result.score = maxScore;
+          result.decision = 'correct';
+          result.is_correct = true;
+        } else if (found >= 1) {
+          result.score = Math.max(result.score || 0, config.points_per_concept || 0.5);
+          result.decision = 'partially_correct';
+          result.is_correct = false;
+        } else {
+          result.score = 0;
+          result.decision = 'incorrect';
+          result.is_correct = false;
+        }
       } else {
-        result.score = 0;
-        result.is_correct = false;
-        result.decision = 'incorrect';
+        // întrebări deschise (ex. 9)
+        if (result.decision === 'abstain') {
+          result.score = 0;
+          result.is_correct = false;
+        } else if ((result.score || 0) >= maxScore) {
+          result.score = maxScore;
+          result.decision = 'correct';
+          result.is_correct = true;
+        } else if ((result.score || 0) > 0) {
+          result.score = Math.min(result.score, maxScore);
+          result.decision = 'partially_correct';
+          result.is_correct = false;
+        }
       }
     }
 
+    result.score = Math.min(result.score, maxScore);
     return result;
   } catch (error) {
     console.error('[EROARE GEMINI]', error);
@@ -219,9 +215,10 @@ Răspunde DOAR cu JSON exact în formatul:
   }
 }
 
-// ==============================
-// EVALUARE GRILĂ (GEMINI, feedback scurt RO)
-// ==============================
+// ============================================
+// EVALUARE GRILĂ – IDENTICĂ LA STRUCTURĂ CU "adorarea"
+// ============================================
+
 async function evaluateGrila(stepData, answer, isCorrect, student) {
   const score = isCorrect ? stepData.points : 0;
 
@@ -235,9 +232,9 @@ ${stepData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
 CORECT: ${stepData.options[stepData.correct_answer]}
 ELEVUL A ALES: ${stepData.options[answer]}
 
-FEEDBACK (în română, 1–2 propoziții):
-- Dacă CORECT: Confirmă clar răspunsul.
-- Dacă GREȘIT: Indică secțiunea din fișă unde se găsește răspunsul (nume/descriere scurtă).`;
+FEEDBACK (în română, 1-2 propoziții):
+- Dacă CORECT: Confirmă răspunsul pe scurt
+- Dacă GREȘIT: Indică secțiunea din fișă unde se găsește răspunsul`;
 
   try {
     const response = await gemini.models.generateContent({
@@ -262,9 +259,10 @@ FEEDBACK (în română, 1–2 propoziții):
   }
 }
 
-// ==============================
-// ROUTARE PAS: GRILĂ vs RĂSPUNS SCURT (structură ca în "adorarea")
-// ==============================
+// ============================================
+// ROUTARE PAS – IDENTICĂ CU "adorarea"
+// ============================================
+
 async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
   if (stepData.type === 'grila') {
     console.log('[GRILĂ]', {
@@ -290,18 +288,16 @@ async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
         score: 0,
         is_correct: false,
         decision: 'abstain',
-        feedback:
-          'Nu am putut evalua cu certitudine. Verifică fișa și reformulează mai clar răspunsul.',
+        feedback: 'Nu am putut evalua cu certitudine. Verifică fișa și reformulează mai clar.',
         concepts_found: [],
         concepts_missing: EXPECTED_ANSWERS[stepIndex]?.concepts || [],
       };
     }
 
     console.log('[EVALUAT]', {
-      step: stepIndex,
       decision: aiResult.decision,
       score: aiResult.score,
-      concepts: Array.isArray(aiResult.concepts_found) ? aiResult.concepts_found : [],
+      concepts: aiResult.concepts_found,
     });
 
     return aiResult;
@@ -311,9 +307,10 @@ async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
   }
 }
 
-// ==============================
-// RAPORT FINAL PERSONALIZAT (stil aliniat)
-// ==============================
+// ============================================
+// RAPORT FINAL – IDENTIC LA FORMAT CU "adorarea"
+// ============================================
+
 async function generateFinalReport(student, performanceData) {
   const { totalScore, maxScore, stepResults } = performanceData;
   const percentage = (totalScore / maxScore) * 100;
@@ -333,13 +330,13 @@ SUBIECT: "Biblia – Cartea Cărților" (autori, cronologie, materiale, limbi, t
 Creează 3 secțiuni scurte (max 500 caractere total):
 
 **Puncte forte:**
-[Ce au înțeles bine – ex: cronologia (Moise/Ioan), materialele (papirus/pergament), limbile (ebraică/greacă), etc.]
+[Ce au înțeles bine – cronologie (Moise/Ioan), materiale (papirus/pergament), limbile (ebraică/greacă), etc.]
 
 **De îmbunătățit:**
-[Ce secțiuni să reviziteze – indică precis zonele unde au avut răspunsuri parțiale/greșite]
+[Ce secțiuni să revizuiască – unde au avut parțiale/greșite]
 
 **Încurajare:**
-[Încurajare prietenoasă, legată de progresul lor, cu o trimitere biblică generală (fără citat lung)]
+[Încurajare personalizată legată de progresul lor, ton cald]
 
 Fii specific pentru performanța lor. Ton cald și încurajator.`;
 
@@ -356,9 +353,10 @@ Fii specific pentru performanța lor. Ton cald și încurajator.`;
   }
 }
 
-// ==============================
-// HANDLERS – aceleași endpoint-uri ca în fișa "adorarea"
-// ==============================
+// ============================================
+// HANDLERS – ACELEAȘI ENDPOINT-URI CA ÎN "adorarea"
+// ============================================
+
 async function handleStepFeedback(requestData) {
   const { stepIndex, stepData, answer, student, isCorrect } = requestData;
 
@@ -438,9 +436,10 @@ async function handleFinalReport(requestData) {
   }
 }
 
-// ==============================
-// EXPORT
-// ==============================
+// ============================================
+// EXPORT – IDENTIC
+// ============================================
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return {
