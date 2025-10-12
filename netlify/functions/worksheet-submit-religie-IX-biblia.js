@@ -101,7 +101,8 @@ const EXPECTED_ANSWERS = {
 // ============================================
 
 async function evaluateShortAnswer(stepIndex, stepData, answer, student) {
-  const config = EXPECTED_ANSWERS[stepIndex];
+  const config = EXPECTED_ANSWERS[(typeof stepIndex === 'number' ? stepIndex : 0) + 1];
+
   if (!config) throw new Error(`Nu există configurație pentru pasul ${stepIndex}`);
 
   const isPartialScoring = config.partial_scoring === true;
@@ -290,7 +291,7 @@ async function evaluateStep(stepIndex, stepData, answer, isCorrect, student) {
         decision: 'abstain',
         feedback: 'Nu am putut evalua cu certitudine. Verifică fișa și reformulează mai clar.',
         concepts_found: [],
-        concepts_missing: EXPECTED_ANSWERS[stepIndex]?.concepts || [],
+        concepts_missing: EXPECTED_ANSWERS[stepIndex + 1]?.concepts || [],
       };
     }
 
