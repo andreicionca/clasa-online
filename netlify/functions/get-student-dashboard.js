@@ -5,30 +5,37 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 
 // Helper: Calculează rank sportiv (egalități = același rank)
 // Helper: Calculează rank sportiv CONTINUU (fără sărituri)
-// Helper: Calculează rank sportiv CONTINUU (fără sărituri)
 function assignSportsRanking(sortedArray) {
   if (sortedArray.length === 0) return [];
 
+  // Primul elev primește rank 1
   sortedArray[0].rank = 1;
 
   for (let i = 1; i < sortedArray.length; i++) {
-    // Comparație cu toleranță pentru float-uri (0.01 diferență)
-    const currentScore = parseFloat(sortedArray[i].score);
-    const previousScore = parseFloat(sortedArray[i - 1].score);
+    // Convertește explicit la float și rotunjește la 2 zecimale
+    const currentScore = Math.round(parseFloat(sortedArray[i].score) * 100) / 100;
+    const previousScore = Math.round(parseFloat(sortedArray[i - 1].score) * 100) / 100;
 
-    // Debug log
-    console.log(`    [Rank] Index ${i}: score=${currentScore}, prev=${previousScore}`);
+    // Debug EXPLICIT pentru fiecare comparație
+    console.log(`    [Rank ${i}] Current: ${currentScore}, Previous: ${previousScore}`);
 
-    if (Math.abs(currentScore - previousScore) < 0.01) {
-      // Același scor (toleranță pentru erori de float)
+    // Comparație cu toleranță pentru float-uri
+    if (Math.abs(currentScore - previousScore) < 0.001) {
+      // Același scor → păstrează rank-ul anterior
       sortedArray[i].rank = sortedArray[i - 1].rank;
-      console.log(`      → Același rank: ${sortedArray[i].rank}`);
+      console.log(`      → Ex-aequo! Rank: ${sortedArray[i].rank}`);
     } else {
-      // Scor diferit
+      // Scor diferit → rank = rank anterior + 1
       sortedArray[i].rank = sortedArray[i - 1].rank + 1;
       console.log(`      → Rank nou: ${sortedArray[i].rank}`);
     }
   }
+
+  // Log final cu toate rank-urile
+  console.log(
+    '    [Final Ranks]:',
+    sortedArray.map((s) => `${s.name}: rank ${s.rank}, score ${s.score}`)
+  );
 
   return sortedArray;
 }

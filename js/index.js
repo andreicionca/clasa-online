@@ -98,7 +98,7 @@ function populateOverallStats() {
 
   // Clasament
   if (stats.overall_rank) {
-    document.getElementById('overall-rank').textContent = `#${stats.overall_rank}`;
+    document.getElementById('overall-rank').textContent = `Locul ${stats.overall_rank}`;
   } else {
     document.getElementById('overall-rank').textContent = '-';
   }
@@ -302,7 +302,7 @@ function createAttemptedContent(worksheet) {
     <div class="ranking-section">
       <div class="your-rank">
         <span class="rank-icon">${medal}</span>
-        <span>Locul tău: <strong>#${worksheet.student_rank}</strong> din ${
+        <span>Ești pe locul: <strong>${worksheet.student_rank}</strong> din ${
     worksheet.total_students
   }</span>
       </div>
@@ -376,7 +376,7 @@ function createMiniPodium(top3, currentStudentId, currentStudentRank, currentStu
         <div class="podium-item">
           <span class="medal">${medal}</span>
           <span class="name">${getShortName(entry.name)}</span>
-          <span class="score">${entry.score}</span>
+          <span class="score">${entry.score} puncte</span>
         </div>
       `;
     });
@@ -384,9 +384,9 @@ function createMiniPodium(top3, currentStudentId, currentStudentRank, currentStu
     // Adaugă studentul curent
     podiumHTML += `
       <div class="podium-item you">
-        <span class="medal">#${currentStudentRank}</span>
+        <span class="medal">Locul ${currentStudentRank}</span>
         <span class="name">Tu</span>
-        <span class="score">${currentStudentScore}</span>
+        <span class="score">${currentStudentScore} puncte</span>
       </div>
     `;
   }
