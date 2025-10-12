@@ -3,6 +3,44 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
+// Helper: Calculează rank sportiv (egalități = același rank)
+// Helper: Calculează rank sportiv CONTINUU (fără sărituri)
+function assignSportsRanking(sortedArray) {
+  if (sortedArray.length === 0) return [];
+
+  let currentRank = 1;
+  sortedArray[0].rank = 1;
+
+  for (let i = 1; i < sortedArray.length; i++) {
+    if (sortedArray[i].score === sortedArray[i - 1].score) {
+      // Același scor = păstrează rank-ul anterior
+      sortedArray[i].rank = sortedArray[i - 1].rank;
+    } else {
+      // Scor diferit = rank-ul anterior + 1
+      currentRank = sortedArray[i - 1].rank + 1;
+      sortedArray[i].rank = currentRank;
+    }
+  }
+
+  return sortedArray;
+}
+
+// Helper: Extrage top 3 POZIȚII (nu top 3 elevi)
+function getTop3Positions(rankings) {
+  const top3Positions = [];
+  const maxRank = 3;
+
+  for (const entry of rankings) {
+    if (entry.rank <= maxRank) {
+      top3Positions.push(entry);
+    } else {
+      break; // Ieșim când depășim rank 3
+    }
+  }
+
+  return top3Positions;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return {
@@ -58,11 +96,11 @@ exports.handler = async (event) => {
 
     console.log('✅ Student găsit:', student);
 
-    // 2. Obține toți studenții din EXACT aceeași clasă (cu tot cu secțiune)
+    // 2. Obține toți studenții din EXACT aceeași clasă
     const { data: classmates, error: classmatesError } = await supabase
       .from('students')
       .select('id, name, surname')
-      .eq('grade', student.grade); // Match exact: "XI E" = "XI E"
+      .eq('grade', student.grade);
 
     if (classmatesError) {
       console.error('❌ Eroare la încărcarea colegilor:', classmatesError);
@@ -96,7 +134,6 @@ exports.handler = async (event) => {
     if (worksheetIdsUsed.length === 0) {
       console.log('ℹ️ Nicio fișă nu a fost încercată de clasa ta încă');
 
-      // Returnează răspuns gol dar valid
       return {
         statusCode: 200,
         headers: {
@@ -117,7 +154,7 @@ exports.handler = async (event) => {
             total_points_possible: 0,
             overall_rank: null,
             total_students_with_attempts: 0,
-            overall_top_5: [],
+            overall_top_3: [],
             worksheets_completed: 0,
             worksheets_total: 0,
             completion_percentage: 0,
@@ -128,11 +165,12 @@ exports.handler = async (event) => {
 
     console.log(`📋 Se încarcă ${worksheetIdsUsed.length} worksheets folosite de clasă`);
 
-    // 5. Încarcă DOAR worksheets folosite de clasă (indiferent de grade)
+    // 5. Încarcă DOAR worksheets folosite de clasă
     const { data: worksheetsRaw, error: worksheetsError } = await supabase
       .from('worksheets')
       .select('id, subject, grade, topic, title, description, structure, max_attempts, is_active')
       .in('id', worksheetIdsUsed)
+      .order('subject', { ascending: true })
       .order('created_at', { ascending: false });
 
     if (worksheetsError) {
@@ -142,7 +180,7 @@ exports.handler = async (event) => {
 
     console.log(`✅ ${worksheetsRaw.length} worksheets încărcate`);
 
-    // Parse JSON structure pentru fiecare worksheet
+    // Parse JSON structure
     const worksheets = worksheetsRaw.map((ws) => {
       try {
         const parsedStructure =
@@ -163,19 +201,18 @@ exports.handler = async (event) => {
 
     // 6. Procesează datele pentru fiecare worksheet
     const worksheetsData = worksheets.map((worksheet) => {
-      // Calculează max score din structure
       const maxScore = worksheet.structure.steps.reduce((sum, step) => sum + (step.points || 0), 0);
 
       console.log(
         `📝 Procesare worksheet ${worksheet.id} - ${worksheet.title}, max_score: ${maxScore}`
       );
 
-      // Filtrează încercările pentru acest worksheet (doar din clasa curentă)
+      // Filtrează încercările pentru acest worksheet
       const worksheetAttempts = allAttempts.filter((a) => a.worksheet_id === worksheet.id);
 
       console.log(`  → ${worksheetAttempts.length} încercări din clasa ${student.grade}`);
 
-      // Calculează BEST score pentru fiecare student DIN CLASĂ
+      // Calculează BEST score pentru fiecare student
       const studentBestScores = {};
 
       worksheetAttempts.forEach((attempt) => {
@@ -193,7 +230,7 @@ exports.handler = async (event) => {
 
       console.log(`  → ${Object.keys(studentBestScores).length} studenți cu best scores`);
 
-      // Creează array pentru ranking (doar colegii din clasă care au încercat)
+      // Creează array pentru ranking
       const rankings = Object.entries(studentBestScores)
         .map(([studentId, data]) => {
           const studentInfo = classmates.find((s) => s.id === parseInt(studentId));
@@ -206,28 +243,29 @@ exports.handler = async (event) => {
           };
         })
         .sort((a, b) => {
+          // Sortează descrescător după scor
           if (b.score !== a.score) {
             return b.score - a.score;
           }
+          // La egalitate, primul care a terminat = mai sus
           return new Date(a.completed_at) - new Date(b.completed_at);
         });
 
-      // Adaugă rank
-      rankings.forEach((entry, index) => {
-        entry.rank = index + 1;
-      });
+      // ✅ RANK SPORTIV: Aplică rank-ul sportiv (egalități = același rank)
+      assignSportsRanking(rankings);
 
       // Găsește datele elevului curent
       const studentData = rankings.find((r) => r.student_id === student.id);
 
-      // Top 5
-      const top5 = rankings.slice(0, 5);
+      // ✅ TOP 3 POZIȚII (nu top 3 elevi)
+      const top3 = getTop3Positions(rankings);
 
       console.log(
         `  → Studentul curent: ${
           studentData ? `rank ${studentData.rank}, score ${studentData.score}` : 'neînceput'
         }`
       );
+      console.log(`  → Top 3 poziții: ${top3.length} elevi afișați`);
 
       return {
         id: worksheet.id,
@@ -243,12 +281,12 @@ exports.handler = async (event) => {
         student_rank: studentData ? studentData.rank : null,
         completed_at: studentData ? studentData.completed_at : null,
         total_students: rankings.length,
-        top_5: top5,
+        top_3: top3, // ← Returnează top 3 POZIȚII
         has_attempted: !!studentData,
       };
     });
 
-    // 7. Calculează statistici generale (overall - doar pentru clasa curentă)
+    // 7. Calculează statistici generale (overall)
     console.log('📊 Calculare statistici generale...');
 
     const overallScores = {};
@@ -257,21 +295,14 @@ exports.handler = async (event) => {
       let totalScore = 0;
 
       worksheetsData.forEach((ws) => {
-        const studentEntry = ws.top_5.find((entry) => entry.student_id === classmate.id);
+        // Caută în toate rankings-urile (nu doar top 3)
+        const studentAttempts = allAttempts.filter(
+          (a) => a.worksheet_id === ws.id && a.student_id === classmate.id
+        );
 
-        if (!studentEntry) {
-          const studentAttempts = allAttempts.filter(
-            (a) => a.worksheet_id === ws.id && a.student_id === classmate.id
-          );
-
-          if (studentAttempts.length > 0) {
-            const bestScore = Math.max(
-              ...studentAttempts.map((a) => parseFloat(a.total_score) || 0)
-            );
-            totalScore += bestScore;
-          }
-        } else {
-          totalScore += studentEntry.score;
+        if (studentAttempts.length > 0) {
+          const bestScore = Math.max(...studentAttempts.map((a) => parseFloat(a.total_score) || 0));
+          totalScore += bestScore;
         }
       });
 
@@ -284,13 +315,13 @@ exports.handler = async (event) => {
       }
     });
 
+    // Sortează clasamentul general
     const overallRankings = Object.values(overallScores).sort(
       (a, b) => b.total_score - a.total_score
     );
 
-    overallRankings.forEach((entry, index) => {
-      entry.rank = index + 1;
-    });
+    // ✅ RANK SPORTIV pentru clasamentul general
+    assignSportsRanking(overallRankings);
 
     console.log(`  → ${overallRankings.length} studenți în clasamentul general`);
 
@@ -303,6 +334,11 @@ exports.handler = async (event) => {
           : 'fără puncte'
       }`
     );
+
+    // ✅ TOP 3 POZIȚII pentru clasamentul general
+    const overallTop3 = getTop3Positions(overallRankings);
+
+    console.log(`  → Top 3 poziții overall: ${overallTop3.length} elevi afișați`);
 
     const totalPointsPossible = worksheetsData.reduce((sum, ws) => sum + ws.max_score, 0);
     const completedWorksheetsCount = worksheetsData.filter((ws) => ws.has_attempted).length;
@@ -325,7 +361,7 @@ exports.handler = async (event) => {
         total_points_possible: totalPointsPossible,
         overall_rank: studentOverallData ? studentOverallData.rank : null,
         total_students_with_attempts: overallRankings.length,
-        overall_top_5: overallRankings.slice(0, 5),
+        overall_top_3: overallTop3, // ← TOP 3 POZIȚII
         worksheets_completed: completedWorksheetsCount,
         worksheets_total: worksheets.length,
         completion_percentage:
@@ -341,6 +377,7 @@ exports.handler = async (event) => {
       worksheets: worksheetsData.length,
       rank: response.overall_stats.overall_rank,
       score: response.overall_stats.total_points_earned,
+      top3_count: overallTop3.length,
     });
 
     return {

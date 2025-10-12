@@ -68,7 +68,7 @@
             </div>
           </div>
 
-          <!-- Progress bar general -->
+          <!-- Progress bar bazat pe fișe completate -->
           <div class="progress-container">
             <div class="progress-bar">
               <div class="progress-fill" id="overall-progress" style="width: 0%"></div>
@@ -79,59 +79,33 @@
             </div>
           </div>
 
-          <!-- Top 5 clasament general -->
+          <!-- Top 3 clasament general -->
           <div class="overall-leaderboard">
-            <h4>🏆 Top 5 clasament general</h4>
-            <div id="overall-top5-container">
+            <h4>🏆 Primii 3 din clasament</h4>
+            <div id="overall-top3-container">
               <!-- Populat dinamic -->
             </div>
           </div>
         </div>
 
-        <!-- Secțiunea cu fișele de lucru -->
-        <div class="worksheets-section">
-          <div class="section-header">
-            <h3>📝 Fișele tale</h3>
-            <div class="filters">
-              <button class="filter-btn active" data-filter="all" onclick="filterWorksheets('all')">
-                Toate
-              </button>
-              <button class="filter-btn" data-filter="tic" onclick="filterWorksheets('tic')">
-                TIC
-              </button>
-              <button
-                class="filter-btn"
-                data-filter="religie"
-                onclick="filterWorksheets('religie')"
-              >
-                Religie
-              </button>
-              <button
-                class="filter-btn"
-                data-filter="dirigentie"
-                onclick="filterWorksheets('dirigentie')"
-              >
-                Dirigentie
-              </button>
-            </div>
-          </div>
+        <!-- Secțiuni organizate pe MATERII -->
+        <div id="subjects-container" class="subjects-container">
+          <!-- Fiecare materie va avea propria secțiune -->
+          <!-- Generat dinamic în JS -->
+        </div>
 
-          <div id="worksheets-grid" class="worksheets-grid">
-            <!-- Card-uri generate dinamic -->
-          </div>
-
-          <div id="no-worksheets" class="no-worksheets hidden">
-            <p>📭 Nu ai fișe de lucru disponibile momentan</p>
-          </div>
+        <!-- Mesaj dacă nu există fișe -->
+        <div id="no-worksheets" class="no-worksheets hidden">
+          <p>📭 Nu ai fișe de lucru disponibile momentan</p>
         </div>
       </section>
     </div>
 
-    <!-- Modal pentru top 5 complet -->
+    <!-- Modal pentru top 3 complet -->
     <div id="ranking-modal" class="modal-overlay hidden">
       <div class="modal">
         <div class="modal-header">
-          <h3 id="modal-title">Top 5 clasament</h3>
+          <h3 id="modal-title">Top 3 clasament</h3>
           <button onclick="closeRankingModal()" class="close-btn">×</button>
         </div>
         <div class="modal-content">

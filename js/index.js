@@ -1,7 +1,6 @@
-// js/index.js - Dashboard functionality
+// js/index.js - Dashboard functionality refactored
 
 let dashboardData = null;
-let currentFilter = 'all';
 
 // Inițializare pagină
 document.addEventListener('DOMContentLoaded', function () {
@@ -15,8 +14,6 @@ function initializeIndexPage() {
   const savedCode = localStorage.getItem('studentCode');
   if (savedCode) {
     document.getElementById('student-code').value = savedCode;
-    // Auto-login (opțional - comentează dacă nu vrei)
-    // loginStudent();
   }
 
   // Event listener pentru Enter key
@@ -55,13 +52,8 @@ async function loginStudent() {
     const data = await response.json();
 
     if (data.success) {
-      // Salvează codul în localStorage
       localStorage.setItem('studentCode', studentCode);
-
-      // Salvează datele
       dashboardData = data;
-
-      // Afișează dashboard-ul
       showDashboard();
     } else {
       showError(data.error || 'Cod invalid', errorDiv);
@@ -76,16 +68,12 @@ async function loginStudent() {
 
 // Afișează dashboard-ul
 function showDashboard() {
-  // Ascunde autentificarea
   document.getElementById('auth-section').classList.add('hidden');
-
-  // Afișează dashboard-ul
   document.getElementById('dashboard-section').classList.remove('hidden');
 
-  // Populează datele
   populateStudentInfo();
   populateOverallStats();
-  populateWorksheets();
+  populateWorksheetsBySubject();
 
   console.log('Dashboard afișat cu succes');
 }
@@ -93,7 +81,6 @@ function showDashboard() {
 // Populează informațiile elevului în header
 function populateStudentInfo() {
   const student = dashboardData.student;
-
   document.getElementById(
     'student-name-display'
   ).textContent = `${student.name} ${student.surname}`;
@@ -119,27 +106,25 @@ function populateOverallStats() {
   // Procent completare
   document.getElementById('completion-rate').textContent = `${stats.completion_percentage}%`;
 
-  // Progress bar
+  // Progress bar bazat DOAR pe fișe completate
   const progressPercentage =
-    stats.total_points_possible > 0
-      ? (stats.total_points_earned / stats.total_points_possible) * 100
-      : 0;
+    stats.worksheets_total > 0 ? (stats.worksheets_completed / stats.worksheets_total) * 100 : 0;
   document.getElementById('overall-progress').style.width = `${progressPercentage}%`;
 
   // Fișe completate
   document.getElementById('worksheets-done').textContent = stats.worksheets_completed;
   document.getElementById('worksheets-total').textContent = stats.worksheets_total;
 
-  // Top 5 clasament general
-  populateOverallLeaderboard(stats.overall_top_5, dashboardData.student.id);
+  // Top 3 clasament general (cu rank sportiv)
+  populateOverallLeaderboard(stats.overall_top_3, dashboardData.student.id);
 }
 
-// Populează top 5 clasament general
-function populateOverallLeaderboard(top5, currentStudentId) {
-  const container = document.getElementById('overall-top5-container');
+// Populează top 3 clasament general
+function populateOverallLeaderboard(top3, currentStudentId) {
+  const container = document.getElementById('overall-top3-container');
   container.innerHTML = '';
 
-  if (top5.length === 0) {
+  if (!top3 || top3.length === 0) {
     container.innerHTML = '<p class="no-data">Nu există încă clasament</p>';
     return;
   }
@@ -147,7 +132,7 @@ function populateOverallLeaderboard(top5, currentStudentId) {
   const leaderboardList = document.createElement('div');
   leaderboardList.className = 'leaderboard-list';
 
-  top5.forEach((entry) => {
+  top3.forEach((entry) => {
     const item = document.createElement('div');
     item.className = 'leaderboard-item';
 
@@ -173,12 +158,12 @@ function populateOverallLeaderboard(top5, currentStudentId) {
   container.appendChild(leaderboardList);
 }
 
-// Populează grid-ul cu worksheets
-function populateWorksheets() {
-  const grid = document.getElementById('worksheets-grid');
+// NOUĂ: Populează worksheets organizate pe MATERII
+function populateWorksheetsBySubject() {
+  const container = document.getElementById('subjects-container');
   const noWorksheetsDiv = document.getElementById('no-worksheets');
 
-  grid.innerHTML = '';
+  container.innerHTML = '';
 
   const worksheets = dashboardData.worksheets;
 
@@ -189,13 +174,71 @@ function populateWorksheets() {
 
   noWorksheetsDiv.classList.add('hidden');
 
+  // Grupează worksheets pe materii
+  const worksheetsBySubject = {};
+
+  worksheets.forEach((ws) => {
+    if (!worksheetsBySubject[ws.subject]) {
+      worksheetsBySubject[ws.subject] = [];
+    }
+    worksheetsBySubject[ws.subject].push(ws);
+  });
+
+  // Creează o secțiune pentru fiecare materie
+  Object.entries(worksheetsBySubject).forEach(([subject, subjectWorksheets]) => {
+    const section = createSubjectSection(subject, subjectWorksheets);
+    container.appendChild(section);
+  });
+
+  console.log('Worksheets organizate pe materii:', Object.keys(worksheetsBySubject));
+}
+
+// Creează secțiune pentru o materie
+function createSubjectSection(subject, worksheets) {
+  const section = document.createElement('div');
+  section.className = `subject-section ${subject}`;
+
+  // Icon și nume materie
+  const subjectInfo = getSubjectInfo(subject);
+
+  // Calculează statistici pentru materie
+  const completedCount = worksheets.filter((ws) => ws.has_attempted).length;
+  const totalCount = worksheets.length;
+
+  section.innerHTML = `
+    <div class="subject-section-header">
+      <span class="subject-icon">${subjectInfo.icon}</span>
+      <h3 class="subject-section-title">${subjectInfo.name}</h3>
+      <div class="subject-stats">
+        <span class="subject-stat">
+          📝 ${completedCount}/${totalCount} completate
+        </span>
+      </div>
+    </div>
+    <div class="worksheets-grid" id="grid-${subject}">
+      <!-- Card-uri generate dinamic -->
+    </div>
+  `;
+
+  // Populează grid-ul cu card-uri
+  const grid = section.querySelector(`#grid-${subject}`);
   worksheets.forEach((worksheet) => {
     const card = createWorksheetCard(worksheet);
     grid.appendChild(card);
   });
 
-  // Aplică filtrul curent
-  applyCurrentFilter();
+  return section;
+}
+
+// Helper: obține info despre materie
+function getSubjectInfo(subject) {
+  const subjects = {
+    religie: { name: 'Religie', icon: '✝️' },
+    tic: { name: 'Tehnologia Informației și Comunicării', icon: '💻' },
+    dirigentie: { name: 'Dirigenție', icon: '👥' },
+  };
+
+  return subjects[subject] || { name: subject.toUpperCase(), icon: '📚' };
 }
 
 // Creează card pentru worksheet
@@ -208,7 +251,6 @@ function createWorksheetCard(worksheet) {
     card.classList.add('not-attempted');
   }
 
-  // Header cu badge-uri
   const statusBadge = getStatusBadge(worksheet);
 
   card.innerHTML = `
@@ -234,13 +276,11 @@ function createWorksheetCard(worksheet) {
 function createAttemptedContent(worksheet) {
   const percentage = (worksheet.student_best_score / worksheet.max_score) * 100;
   const scoreClass = getScoreClass(percentage);
-
-  // Determină medalia pentru student
   const medal = getMedalForRank(worksheet.student_rank);
 
-  // Creează mini podium
+  // Creează mini podium TOP 3
   const podiumHTML = createMiniPodium(
-    worksheet.top_5,
+    worksheet.top_3,
     dashboardData.student.id,
     worksheet.student_rank,
     worksheet.student_best_score
@@ -270,7 +310,7 @@ function createAttemptedContent(worksheet) {
       ${podiumHTML}
 
       <button class="view-full-ranking" onclick="showFullRanking(${worksheet.id})">
-        Vezi top 5 complet
+        Vezi top 3 complet
       </button>
     </div>
 
@@ -302,21 +342,19 @@ function createNotAttemptedContent(worksheet) {
   `;
 }
 
-// Creează mini podium cu top 3
-function createMiniPodium(top5, currentStudentId, currentStudentRank, currentStudentScore) {
-  if (top5.length === 0) {
+// REFACTORIZAT: Creează mini podium cu TOP 3 (rank sportiv)
+function createMiniPodium(top3, currentStudentId, currentStudentRank, currentStudentScore) {
+  if (!top3 || top3.length === 0) {
     return '<p class="no-data">Nu există încă clasament</p>';
   }
 
-  // Ia doar top 3
-  const top3 = top5.slice(0, 3);
-
   let podiumHTML = '<div class="mini-podium">';
 
-  // Dacă studentul e în top 3, afișează top 3 normal
+  // Dacă studentul e în top 3 (rank <= 3), afișează top 3 normal
   if (currentStudentRank <= 3) {
-    top3.forEach((entry, index) => {
-      const medal = getMedalForRank(index + 1);
+    // Afișează toți cei din top 3 poziții (poate fi mai mult de 3 persoane!)
+    top3.forEach((entry) => {
+      const medal = getMedalForRank(entry.rank);
       const isYou = entry.student_id === currentStudentId;
 
       podiumHTML += `
@@ -328,11 +366,11 @@ function createMiniPodium(top5, currentStudentId, currentStudentRank, currentStu
       `;
     });
   } else {
-    // Dacă studentul NU e în top 3, arată top 2 + studentul
+    // Dacă studentul NU e în top 3, arată primii 2 + studentul
     const top2 = top3.slice(0, 2);
 
-    top2.forEach((entry, index) => {
-      const medal = getMedalForRank(index + 1);
+    top2.forEach((entry) => {
+      const medal = getMedalForRank(entry.rank);
 
       podiumHTML += `
         <div class="podium-item">
@@ -354,7 +392,6 @@ function createMiniPodium(top5, currentStudentId, currentStudentRank, currentStu
   }
 
   podiumHTML += '</div>';
-
   return podiumHTML;
 }
 
@@ -399,14 +436,11 @@ function getShortName(fullName) {
 
 // Navighează la worksheet
 function goToWorksheet(subject, grade, topic) {
-  // Salvează URL-ul pentru întoarcere
   localStorage.setItem('returnToDashboard', 'true');
-
-  // Navighează la worksheet.html (autentificarea se va face acolo)
   window.location.href = '/worksheet.html';
 }
 
-// Afișează modal cu top 5 complet
+// Afișează modal cu top 3 complet
 function showFullRanking(worksheetId) {
   const worksheet = dashboardData.worksheets.find((w) => w.id === worksheetId);
 
@@ -416,12 +450,12 @@ function showFullRanking(worksheetId) {
   const modalTitle = document.getElementById('modal-title');
   const modalContent = document.getElementById('modal-ranking-content');
 
-  modalTitle.textContent = `🏆 ${worksheet.title} - Top 5`;
+  modalTitle.textContent = `🏆 ${worksheet.title} - Primii 3`;
 
-  // Creează lista completă
   let rankingHTML = '<div class="leaderboard-list">';
 
-  worksheet.top_5.forEach((entry) => {
+  // Afișează toți din top 3 poziții (cu rank sportiv)
+  worksheet.top_3.forEach((entry) => {
     const medal = getMedalForRank(entry.rank);
     const isYou = entry.student_id === dashboardData.student.id;
     const percentage = (entry.score / worksheet.max_score) * 100;
@@ -445,8 +479,6 @@ function showFullRanking(worksheetId) {
   rankingHTML += '</div>';
 
   modalContent.innerHTML = rankingHTML;
-
-  // Afișează modal-ul
   modal.classList.remove('hidden');
 }
 
@@ -462,35 +494,6 @@ document.addEventListener('click', function (e) {
     closeRankingModal();
   }
 });
-
-// Filtrare worksheets
-function filterWorksheets(filter) {
-  currentFilter = filter;
-
-  // Actualizează butoanele
-  document.querySelectorAll('.filter-btn').forEach((btn) => {
-    btn.classList.remove('active');
-    if (btn.getAttribute('data-filter') === filter) {
-      btn.classList.add('active');
-    }
-  });
-
-  applyCurrentFilter();
-}
-
-function applyCurrentFilter() {
-  const cards = document.querySelectorAll('.worksheet-card');
-
-  cards.forEach((card) => {
-    const subject = card.getAttribute('data-subject');
-
-    if (currentFilter === 'all' || subject === currentFilter) {
-      card.style.display = '';
-    } else {
-      card.style.display = 'none';
-    }
-  });
-}
 
 // Logout
 function logoutStudent() {

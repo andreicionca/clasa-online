@@ -343,51 +343,70 @@ body {
   font-size: 1.1rem;
 }
 
-/* ===== WORKSHEETS SECTION ===== */
-.worksheets-section {
+/* ===== SUBJECTS CONTAINER (organizare pe materii) ===== */
+.subjects-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
   margin-bottom: var(--spacing-xl);
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-}
-
-.section-header h3 {
-  font-size: 1.25rem;
-  color: var(--text-primary);
-}
-
-.filters {
-  display: flex;
-  gap: var(--spacing-xs);
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  padding: 0.5rem 1rem;
+.subject-section {
   background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: var(--radius);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow);
+}
+
+.subject-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.subject-icon {
+  font-size: 2rem;
+}
+
+.subject-section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.subject-stats {
+  display: flex;
+  gap: var(--spacing-md);
   font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  margin-left: auto;
 }
 
-.filter-btn:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+.subject-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.filter-btn.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+/* Culori specifice materiilor */
+.subject-section.tic {
+  border-left: 4px solid #1976d2;
+}
+
+.subject-section.religie {
+  border-left: 4px solid #7b1fa2;
+}
+
+.subject-section.dirigentie {
+  border-left: 4px solid #388e3c;
+}
+
+.subject-section.test {
+  border-left: 4px solid #f57c00;
 }
 
 /* Grid worksheets */
@@ -448,6 +467,11 @@ body {
 .subject-badge.dirigentie {
   background: #e8f5e9;
   color: #388e3c;
+}
+
+.subject-badge.test {
+  background: #fff3e0;
+  color: #f57c00;
 }
 
 .status-badge {
@@ -645,24 +669,6 @@ body {
   transform: none;
 }
 
-.btn-secondary {
-  width: 100%;
-  padding: 0.75rem;
-  background: white;
-  color: var(--primary-color);
-  border: 2px solid var(--primary-color);
-  border-radius: var(--radius);
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background: var(--primary-color);
-  color: white;
-}
-
 /* Not attempted state */
 .not-attempted-message {
   text-align: center;
@@ -745,7 +751,7 @@ body {
   padding: var(--spacing-md);
 }
 
-/* Responsive */
+/* Responsive pentru subject sections */
 @media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
@@ -757,13 +763,18 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .worksheets-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .section-header {
+  .subject-section-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .subject-stats {
+    margin-left: 0;
+    margin-top: var(--spacing-xs);
+  }
+
+  .worksheets-grid {
+    grid-template-columns: 1fr;
   }
 
   .mini-podium {
