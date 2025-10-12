@@ -581,7 +581,6 @@ body {
 /* Mini podium */
 .mini-podium {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-around;
   gap: var(--spacing-xs);
   margin-bottom: var(--spacing-sm);
@@ -594,8 +593,7 @@ body {
   align-items: center;
   gap: 0.25rem;
   padding: var(--spacing-xs);
-  min-width: 90px;
-  max-width: 120px;
+  flex: 1;
   background: var(--bg-color);
   border-radius: var(--radius);
   font-size: 0.85rem;
