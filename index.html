@@ -3,93 +3,143 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clasa Online - Fișe de lucru interactive</title>
+    <title>Clasa Online - Dashboard</title>
     <link rel="stylesheet" href="css/index.css" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   </head>
   <body>
     <div class="container">
-      <!-- Header -->
-      <header class="header">
-        <div class="header-content">
-          <h1 class="logo">Clasa Online</h1>
-          <p class="tagline">Fișe de lucru interactive</p>
-        </div>
-      </header>
+      <!-- Secțiunea de autentificare -->
+      <section id="auth-section" class="section">
+        <div class="auth-card">
+          <div class="auth-header">
+            <h1 class="logo">📚 Clasa Online</h1>
+            <p class="tagline">Intră cu codul tău personal</p>
+          </div>
 
-      <!-- Status de construcție -->
-      <section class="construction-notice">
-        <div class="construction-content">
-          <div class="construction-icon">🚧</div>
-          <h2>Pagina este în construcție</h2>
-          <p>Lucrăm pentru a aduce toate fișele de lucru într-un singur loc</p>
-          <div class="progress-info">
-            <span class="status-badge">În dezvoltare</span>
+          <div class="auth-form">
+            <div class="input-group">
+              <label for="student-code">Codul tău</label>
+              <input
+                type="text"
+                id="student-code"
+                placeholder="Codul primit de la profesor"
+                autocomplete="off"
+              />
+            </div>
+
+            <button onclick="loginStudent()" class="auth-btn" id="auth-btn">
+              Intră în platformă
+            </button>
+
+            <div id="auth-error" class="error hidden"></div>
+            <div id="auth-loading" class="loading hidden">Se verifică datele...</div>
           </div>
         </div>
       </section>
 
-      <!-- Preview pentru viitoarele fișe -->
-      <section class="worksheets-preview">
-        <h3>Fișele de lucru disponibile</h3>
-        <div class="worksheets-grid">
-          <!-- Fișă disponibilă -->
-          <div class="worksheet-card available">
-            <div class="card-header">
-              <span class="subject-badge tic">TIC</span>
-              <span class="grade-badge">XII</span>
+      <!-- Secțiunea Dashboard -->
+      <section id="dashboard-section" class="section hidden">
+        <!-- Header cu info elev -->
+        <div class="dashboard-header">
+          <div class="student-info">
+            <h2 id="student-name-display">Ion Popescu</h2>
+            <span class="grade-badge" id="student-grade-display">Clasa XII</span>
+          </div>
+          <button onclick="logoutStudent()" class="logout-btn">Ieșire</button>
+        </div>
+
+        <!-- Card statistici generale -->
+        <div class="overall-stats-card">
+          <h3>📊 Progresul tău general</h3>
+
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="total-score">0/0</div>
+              <div class="stat-label">Puncte totale</div>
             </div>
-            <div class="card-content">
-              <h4>Securitatea în mediul digital</h4>
-              <p>Exercițiu interactiv despre protecția datelor și malware</p>
-              <div class="card-stats">
-                <span class="stat">
-                  <span class="stat-icon">📝</span>
-                  4 sarcini
-                </span>
-                <span class="stat">
-                  <span class="stat-icon">⏱️</span>
-                  ~15 min
-                </span>
-              </div>
+            <div class="stat-item">
+              <div class="stat-value" id="overall-rank">-</div>
+              <div class="stat-label">Locul în clasament</div>
             </div>
-            <div class="card-actions">
-              <a href="worksheet.html" class="btn btn-primary">Începe exercițiul</a>
+            <div class="stat-item">
+              <div class="stat-value" id="completion-rate">0%</div>
+              <div class="stat-label">Fișe completate</div>
             </div>
           </div>
 
-          <!-- Fișe în construcție -->
-          <div class="worksheet-card coming-soon">
-            <div class="card-header">
-              <span class="subject-badge religie">Religie</span>
-              <span class="grade-badge">XI</span>
+          <!-- Progress bar general -->
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" id="overall-progress" style="width: 0%"></div>
             </div>
-            <div class="card-content">
-              <h4>Valorile creștine moderne</h4>
-              <p>Reflecții asupra valorilor în societatea contemporană</p>
-              <div class="coming-soon-badge">În curând</div>
+            <div class="progress-text">
+              <span id="worksheets-done">0</span> din <span id="worksheets-total">0</span> fișe
+              completate
             </div>
           </div>
 
-          <div class="worksheet-card coming-soon">
-            <div class="card-header">
-              <span class="subject-badge dirigentie">Dirigentie</span>
-              <span class="grade-badge">X</span>
-            </div>
-            <div class="card-content">
-              <h4>Orientarea profesională</h4>
-              <p>Exercițiu de autodescoperire și planificare carieră</p>
-              <div class="coming-soon-badge">În curând</div>
+          <!-- Top 5 clasament general -->
+          <div class="overall-leaderboard">
+            <h4>🏆 Top 5 clasament general</h4>
+            <div id="overall-top5-container">
+              <!-- Populat dinamic -->
             </div>
           </div>
         </div>
-      </section>
 
-      <!-- Footer -->
-      <footer class="footer">
-        <p>Platforma educațională interactivă</p>
-        <p class="version">Versiunea 1.0 - Beta</p>
-      </footer>
+        <!-- Secțiunea cu fișele de lucru -->
+        <div class="worksheets-section">
+          <div class="section-header">
+            <h3>📝 Fișele tale</h3>
+            <div class="filters">
+              <button class="filter-btn active" data-filter="all" onclick="filterWorksheets('all')">
+                Toate
+              </button>
+              <button class="filter-btn" data-filter="tic" onclick="filterWorksheets('tic')">
+                TIC
+              </button>
+              <button
+                class="filter-btn"
+                data-filter="religie"
+                onclick="filterWorksheets('religie')"
+              >
+                Religie
+              </button>
+              <button
+                class="filter-btn"
+                data-filter="dirigentie"
+                onclick="filterWorksheets('dirigentie')"
+              >
+                Dirigentie
+              </button>
+            </div>
+          </div>
+
+          <div id="worksheets-grid" class="worksheets-grid">
+            <!-- Card-uri generate dinamic -->
+          </div>
+
+          <div id="no-worksheets" class="no-worksheets hidden">
+            <p>📭 Nu ai fișe de lucru disponibile momentan</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modal pentru top 5 complet -->
+    <div id="ranking-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modal-title">Top 5 clasament</h3>
+          <button onclick="closeRankingModal()" class="close-btn">×</button>
+        </div>
+        <div class="modal-content">
+          <div id="modal-ranking-content">
+            <!-- Populat dinamic -->
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="js/index.js"></script>
