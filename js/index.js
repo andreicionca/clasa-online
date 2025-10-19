@@ -92,9 +92,13 @@ function populateOverallStats() {
   const stats = dashboardData.overall_stats;
 
   // Puncte totale
+  const totalPercentage =
+    stats.total_points_possible > 0
+      ? ((stats.total_points_earned / stats.total_points_possible) * 100).toFixed(1)
+      : 0;
   document.getElementById(
     'total-score'
-  ).textContent = `${stats.total_points_earned}/${stats.total_points_possible}`;
+  ).textContent = `${stats.total_points_earned}/${stats.total_points_possible} (${totalPercentage}%)`;
 
   // Clasament
   if (stats.overall_rank) {
